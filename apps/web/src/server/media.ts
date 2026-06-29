@@ -17,10 +17,12 @@ import {
   rankSimilar,
   shapeEpisodeRatings,
   shapeMovie,
+  shapePerson,
   shapeTv,
   type EpisodeRatingsData,
   type MediaDetail,
   type MediaItem,
+  type PersonDetail,
   type SearchItem,
 } from "./shaper";
 
@@ -28,11 +30,15 @@ import {
 // component imports (`from "../server/media"`) keep working unchanged.
 export type {
   CastMember,
+  CreditName,
   EpisodeRating,
   EpisodeRatingsData,
   ExternalRating,
+  FilmographySection,
   MediaDetail,
   MediaItem,
+  PersonCredit,
+  PersonDetail,
   PersonItem,
   SearchItem,
   SeasonRatings,
@@ -183,6 +189,22 @@ export const getTvDetail = createServerFn({ method: "GET" })
       { isDegraded: () => omdbFailed },
     );
   });
+
+export const getPersonDetail = createServerFn({ method: "GET" })
+  .validator((id: number) => id)
+  .handler(
+    async ({ data: id }): Promise<PersonDetail> =>
+      // Person data shifts slowly, so the day-level TTL the movie/TV detail
+      // functions use fits here too. Keyed per person id.
+      cached(`person-detail:${id}`, TTL.day, async () => {
+        const tmdb = getTmdb();
+        const [details, credits] = await Promise.all([
+          tmdb.getPersonDetails(id),
+          tmdb.getPersonCombinedCredits(id),
+        ]);
+        return shapePerson(details, credits);
+      }),
+  );
 
 /**
  * Per-episode IMDb ratings across all seasons, for the heatmap. This is the

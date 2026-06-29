@@ -2,6 +2,9 @@ import { describe, it, expect } from "vite-plus/test";
 import type {
   TmdbVideosResponse,
   TmdbWatchProviders,
+  TmdbCombinedCredit,
+  TmdbPersonCombinedCredits,
+  TmdbPersonDetails,
   OmdbMovieDetails,
   OmdbSeasonResponse,
 } from "@showtime/core";
@@ -11,6 +14,7 @@ import {
   mapProviders,
   rankSimilar,
   shapeEpisodeRatings,
+  shapePerson,
   shapeTv,
   type MediaItem,
 } from "../shaper.js";
@@ -319,5 +323,163 @@ describe("shapeTv season label", () => {
 
   it("is null when there are no seasons", () => {
     expect(shape(0).seasonsLabel).toBeNull();
+  });
+});
+
+describe("shapePerson", () => {
+  const person = (overrides: Partial<TmdbPersonDetails> = {}): TmdbPersonDetails => ({
+    id: 1,
+    name: "Test Person",
+    biography: "A bio.",
+    birthday: "1980-01-01",
+    deathday: null,
+    place_of_birth: "Somewhere",
+    profile_path: "/profile.jpg",
+    imdb_id: "nm0000001",
+    known_for_department: "Acting",
+    ...overrides,
+  });
+
+  const credit = (overrides: Partial<TmdbCombinedCredit>): TmdbCombinedCredit => ({
+    id: 1,
+    media_type: "movie",
+    title: "A Movie",
+    release_date: "2000-01-01",
+    poster_path: "/p.jpg",
+    vote_average: 7,
+    vote_count: 100,
+    credit_id: "c1",
+    ...overrides,
+  });
+
+  const credits = (
+    cast: TmdbCombinedCredit[],
+    crew: TmdbCombinedCredit[] = [],
+  ): TmdbPersonCombinedCredits => ({ id: 1, cast, crew });
+
+  const sectionFor = (result: ReturnType<typeof shapePerson>, department: string) =>
+    result.filmography.find((section) => section.department === department);
+
+  it("carries identity fields through and handles the empty case", () => {
+    const result = shapePerson(person(), credits([], []));
+    expect(result.name).toBe("Test Person");
+    expect(result.profileUrl).toContain("/profile.jpg");
+    expect(result.imdbId).toBe("nm0000001");
+    expect(result.filmography).toEqual([]);
+    expect(result.knownFor).toEqual([]);
+  });
+
+  it("groups by role, counts, and sorts each section newest first", () => {
+    const result = shapePerson(
+      person(),
+      credits(
+        [
+          credit({ id: 10, title: "Old", release_date: "1990-05-01", character: "Hero" }),
+          credit({ id: 11, title: "New", release_date: "2010-05-01", character: "Villain" }),
+        ],
+        [
+          credit({
+            id: 12,
+            title: "Directed",
+            release_date: "2005-01-01",
+            job: "Director",
+            department: "Directing",
+          }),
+        ],
+      ),
+    );
+
+    const acting = sectionFor(result, "Acting");
+    expect(acting?.count).toBe(2);
+    expect(acting?.credits.map((c) => c.title)).toEqual(["New", "Old"]);
+    expect(acting?.credits[0].role).toBe("Villain");
+
+    const directing = sectionFor(result, "Directing");
+    expect(directing?.count).toBe(1);
+    expect(directing?.credits[0].role).toBe("Director");
+
+    // The known-for department leads the section order.
+    expect(result.filmography[0].department).toBe("Acting");
+  });
+
+  it("handles someone who both acts and directs, de-duping merged jobs within a section", () => {
+    const result = shapePerson(
+      person(),
+      credits(
+        [credit({ id: 20, title: "Auteur", release_date: "2015-01-01", character: "Self" })],
+        [
+          credit({
+            id: 20,
+            title: "Auteur",
+            release_date: "2015-01-01",
+            job: "Director",
+            department: "Directing",
+          }),
+          credit({
+            id: 20,
+            title: "Auteur",
+            release_date: "2015-01-01",
+            job: "Writer",
+            department: "Writing",
+          }),
+          credit({
+            id: 20,
+            title: "Auteur",
+            release_date: "2015-01-01",
+            job: "Screenplay",
+            department: "Writing",
+          }),
+        ],
+      ),
+    );
+
+    expect(sectionFor(result, "Acting")?.count).toBe(1);
+    expect(sectionFor(result, "Directing")?.count).toBe(1);
+
+    // Same title under two Writing jobs collapses to one entry with merged roles.
+    const writing = sectionFor(result, "Writing");
+    expect(writing?.count).toBe(1);
+    expect(writing?.credits[0].role).toBe("Writer, Screenplay");
+  });
+
+  it("degrades gracefully for sparse credits (missing date and poster)", () => {
+    const result = shapePerson(
+      person(),
+      credits([
+        credit({
+          id: 30,
+          title: "No Poster",
+          release_date: undefined,
+          poster_path: null,
+          character: "",
+        }),
+      ]),
+    );
+
+    const acting = sectionFor(result, "Acting");
+    expect(acting?.count).toBe(1);
+    expect(acting?.credits[0].year).toBe("N/A");
+    expect(acting?.credits[0].role).toBe("");
+    // Poster-less titles still appear in the filmography but not the highlights row.
+    expect(result.knownFor).toEqual([]);
+  });
+
+  it("selects 'known for' by vote count and caps the highlights row", () => {
+    const cast = Array.from({ length: 12 }, (_, index) =>
+      credit({
+        id: 100 + index,
+        title: `Title ${index}`,
+        release_date: "2000-01-01",
+        vote_count: index * 10,
+        poster_path: "/p.jpg",
+      }),
+    );
+    const result = shapePerson(person(), credits(cast));
+
+    expect(result.knownFor).toHaveLength(10);
+    // Highest vote count first (id 111 has vote_count 110).
+    expect(result.knownFor[0].id).toBe(111);
+    const voteOrder = result.knownFor.map((c) => c.id);
+    expect(voteOrder).toEqual([...voteOrder].sort((a, b) => b - a));
   });
 });

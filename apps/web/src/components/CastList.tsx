@@ -1,6 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { User } from "lucide-react";
 import { useState } from "react";
 import type { CastMember } from "../server/media";
+import { toPersonSlug } from "../lib/slug";
 
 const INITIAL_COUNT = 7;
 
@@ -14,8 +16,13 @@ export const CastList = ({ cast }: { cast: CastMember[] }) => {
     <div>
       <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
         {visible.map((member) => (
-          <div key={member.id} className="text-center">
-            <div className="mx-auto mb-2 aspect-square w-full overflow-hidden rounded-full border border-white/10 bg-zinc-900">
+          <Link
+            key={member.id}
+            to="/person/$slug"
+            params={{ slug: toPersonSlug(member) }}
+            className="group block text-center no-underline"
+          >
+            <div className="mx-auto mb-2 aspect-square w-full overflow-hidden rounded-full border border-white/10 bg-zinc-900 transition group-hover:border-white/30">
               {member.profileUrl ? (
                 <img
                   src={member.profileUrl}
@@ -29,9 +36,11 @@ export const CastList = ({ cast }: { cast: CastMember[] }) => {
                 </div>
               )}
             </div>
-            <p className="truncate text-xs font-medium text-zinc-200">{member.name}</p>
+            <p className="truncate text-xs font-medium text-zinc-200 transition group-hover:text-white">
+              {member.name}
+            </p>
             <p className="truncate text-xs text-zinc-500">{member.character}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

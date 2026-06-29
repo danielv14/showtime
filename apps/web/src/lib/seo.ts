@@ -1,5 +1,5 @@
 import { NA } from "@showtime/core";
-import type { MediaDetail } from "../server/media";
+import type { MediaDetail, PersonDetail } from "../server/media";
 
 const SITE = "Showtime";
 
@@ -25,6 +25,33 @@ export const mediaMeta = (detail: MediaDetail) => {
       content: detail.mediaType === "tv" ? "video.tv_show" : "video.movie",
     },
     { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+  ];
+
+  if (image) {
+    meta.push({ property: "og:image", content: image });
+    meta.push({ name: "twitter:image", content: image });
+  }
+
+  return meta;
+};
+
+/** Title + Open Graph / Twitter meta for a person page. */
+export const personMeta = (person: PersonDetail) => {
+  const title = `${person.name} — ${SITE}`;
+  const description = person.biography
+    ? truncate(person.biography)
+    : `Explore the filmography of ${person.name} on ${SITE}.`;
+  const image = person.profileUrl;
+
+  const meta = [
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "profile" },
+    { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
   ];

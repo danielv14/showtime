@@ -1,6 +1,8 @@
 import { NA } from "@showtime/core";
+import { Link } from "@tanstack/react-router";
 import { ExternalLink, Play } from "lucide-react";
-import type { EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
+import type { CreditName, EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
+import { toPersonSlug } from "../lib/slug";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
@@ -11,6 +13,24 @@ const ratingAccent: Record<string, string> = {
   "Rotten Tomatoes": "text-red-400",
   Metacritic: "text-emerald-300",
 };
+
+/** Render a list of credited people as person-page links, comma-separated. */
+const PeopleLinks = ({ people }: { people: CreditName[] }) => (
+  <span className="text-zinc-200">
+    {people.map((person, index) => (
+      <span key={person.id}>
+        {index > 0 ? ", " : null}
+        <Link
+          to="/person/$slug"
+          params={{ slug: toPersonSlug(person) }}
+          className="text-zinc-200 underline-offset-2 transition hover:text-white hover:underline"
+        >
+          {person.name}
+        </Link>
+      </span>
+    ))}
+  </span>
+);
 
 const RatingChip = ({ rating }: { rating: ExternalRating }) => (
   <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
@@ -115,13 +135,13 @@ export const DetailView = ({
                   <span className="text-zinc-500">
                     {detail.mediaType === "tv" ? "Created by" : "Director"}:{" "}
                   </span>
-                  <span className="text-zinc-200">{detail.directors.join(", ")}</span>
+                  <PeopleLinks people={detail.directors} />
                 </p>
               ) : null}
               {detail.writers.length > 0 ? (
                 <p>
                   <span className="text-zinc-500">Writers: </span>
-                  <span className="text-zinc-200">{detail.writers.slice(0, 3).join(", ")}</span>
+                  <PeopleLinks people={detail.writers.slice(0, 3)} />
                 </p>
               ) : null}
             </div>
