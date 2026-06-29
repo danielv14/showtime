@@ -61,12 +61,6 @@ export interface CastMember {
   profileUrl: string | null;
 }
 
-export interface CrewCredit {
-  id: number;
-  name: string;
-  job: string;
-}
-
 export interface WatchProvider {
   name: string;
   logoUrl: string | null;
@@ -269,7 +263,9 @@ const mapCast = (credits: TmdbCredits | null): CastMember[] =>
   }));
 
 const crewNames = (credits: TmdbCredits | null, jobs: string[]): string[] =>
-  crewByJob(credits?.crew, jobs).map((member) => member.name);
+  // crewByJob dedupes by id; collapse duplicate display names too so the facts
+  // row never renders the same name twice (two distinct people who share a name).
+  Array.from(new Set(crewByJob(credits?.crew, jobs).map((member) => member.name)));
 
 export const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null =>
   selectTrailerUrl(videos);

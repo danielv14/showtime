@@ -1,4 +1,4 @@
-import { createHttpClient, type HttpClient } from "../helpers/http.js";
+import { createHttpClient, HttpRequestError, type HttpClient } from "../helpers/http.js";
 import type {
   OmdbSearchResponse,
   OmdbErrorResponse,
@@ -86,6 +86,27 @@ export const createOmdbClient = (
     return response as T;
   };
 
+  /**
+   * Issue an OMDB GET (every endpoint is the base URL with query params) and
+   * translate the seam's transport failure into an `OmdbApiError`, so the
+   * package's "failures throw OmdbApiError" convention holds for outages and
+   * timeouts as it already does for OMDB's wire-level `Response: "False"`.
+   */
+  const request = async <T>(searchParams: Record<string, string | number>): Promise<T> => {
+    try {
+      return await httpClient.get<T>("", { searchParams });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        throw new OmdbApiError(
+          error.isTimeout
+            ? "OMDB request timed out"
+            : `OMDB request failed with status ${error.statusCode}`,
+        );
+      }
+      throw error;
+    }
+  };
+
   const search = async (
     type: "movie" | "series",
     options: SearchOptions,
@@ -99,9 +120,7 @@ export const createOmdbClient = (
     if (options.year) searchParams.y = options.year;
     if (options.page) searchParams.page = options.page;
 
-    const response = await httpClient.get<OmdbSearchResponse | OmdbErrorResponse>("", {
-      searchParams,
-    });
+    const response = await request<OmdbSearchResponse | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };
@@ -118,9 +137,9 @@ export const createOmdbClient = (
       plot: options.plot || "short",
     };
 
-    const response = await httpClient.get<
+    const response = await request<
       OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails | OmdbErrorResponse
-    >("", { searchParams });
+    >(searchParams);
 
     return handleResponse(response);
   };
@@ -137,9 +156,8 @@ export const createOmdbClient = (
     if (options.type) searchParams.type = options.type;
     if (options.year) searchParams.y = options.year;
 
-    const response = await httpClient.get<OmdbMovieDetails | OmdbSeriesDetails | OmdbErrorResponse>(
-      "",
-      { searchParams },
+    const response = await request<OmdbMovieDetails | OmdbSeriesDetails | OmdbErrorResponse>(
+      searchParams,
     );
 
     return handleResponse(response);
@@ -153,9 +171,7 @@ export const createOmdbClient = (
       Episode: options.episode,
     };
 
-    const response = await httpClient.get<OmdbEpisodeDetails | OmdbErrorResponse>("", {
-      searchParams,
-    });
+    const response = await request<OmdbEpisodeDetails | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };
@@ -167,9 +183,7 @@ export const createOmdbClient = (
       Season: options.season,
     };
 
-    const response = await httpClient.get<OmdbSeasonResponse | OmdbErrorResponse>("", {
-      searchParams,
-    });
+    const response = await request<OmdbSeasonResponse | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };

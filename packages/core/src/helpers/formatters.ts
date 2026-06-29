@@ -92,10 +92,13 @@ export const formatReview = (review: TmdbReview) => ({
   url: review.url,
 });
 
+/** Build a YouTube watch URL from a video key. One source of truth for the form. */
+const youtubeWatchUrl = (key: string): string => `https://www.youtube.com/watch?v=${key}`;
+
 export const formatVideo = (video: TmdbVideo) => {
   const videoUrl =
     video.site === "YouTube"
-      ? `https://www.youtube.com/watch?v=${video.key}`
+      ? youtubeWatchUrl(video.key)
       : video.site === "Vimeo"
         ? `https://vimeo.com/${video.key}`
         : null;
@@ -162,7 +165,7 @@ export const selectTrailerUrl = (videos: TmdbVideosResponse | null): string | nu
     results.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ??
     results.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
     results.find((v) => v.site === "YouTube");
-  return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
+  return trailer ? youtubeWatchUrl(trailer.key) : null;
 };
 
 /**

@@ -58,6 +58,26 @@ describe("createOmdbClient through a fake HttpClient", () => {
     expect((error as OmdbApiError).message).toBe("Movie not found!");
   });
 
+  it("translates a transport failure into OmdbApiError", async () => {
+    const fake = createFakeHttpClient(failWith(500));
+    const client = createOmdbClient("omdb-key", fake);
+
+    const error = await client.getById({ imdbId: "tt1" }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(OmdbApiError);
+    expect((error as OmdbApiError).message).toBe("OMDB request failed with status 500");
+  });
+
+  it("translates a timeout into OmdbApiError", async () => {
+    const fake = createFakeHttpClient(failWith(undefined, true));
+    const client = createOmdbClient("omdb-key", fake);
+
+    const error = await client.getByTitle({ title: "Dune" }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(OmdbApiError);
+    expect((error as OmdbApiError).message).toBe("OMDB request timed out");
+  });
+
   describe("getAllEpisodes", () => {
     it("skips a season fetch that fails rather than failing the whole series", async () => {
       const responder = (request: RecordedRequest): unknown => {

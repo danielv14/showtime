@@ -28,7 +28,6 @@ import {
 // component imports (`from "../server/media"`) keep working unchanged.
 export type {
   CastMember,
-  CrewCredit,
   EpisodeRating,
   EpisodeRatingsData,
   ExternalRating,
