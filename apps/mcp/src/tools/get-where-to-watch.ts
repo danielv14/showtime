@@ -1,3 +1,4 @@
+import { formatWatchProviders } from "@showtime/core";
 import { z } from "zod";
 import { defineTool } from "./define-tool.js";
 import { resolveMedia } from "./helpers/resolvers.js";
@@ -58,13 +59,8 @@ export const getWhereToWatchTool = defineTool({
       };
     }
 
-    const formatProviders = (providers?: Array<{ provider_name: string; logo_path: string }>) => {
-      if (!providers || providers.length === 0) return [];
-      return providers.map((provider) => ({
-        name: provider.provider_name,
-        logoUrl: clients.tmdb.getImageUrl(provider.logo_path, "w92"),
-      }));
-    };
+    const formatProviders = (providers?: Parameters<typeof formatWatchProviders>[0]) =>
+      formatWatchProviders(providers, clients.tmdb.getImageUrl);
 
     return {
       mediaType: media.type,

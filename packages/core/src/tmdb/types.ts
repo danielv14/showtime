@@ -256,10 +256,10 @@ export interface TmdbCollectionDetails {
   parts: TmdbMovieSearchResult[];
 }
 
-// Combined trending result (can be movie or TV)
+// Combined trending result (can be movie, TV, or person)
 export interface TmdbTrendingResult {
   id: number;
-  media_type: "movie" | "tv";
+  media_type: "movie" | "tv" | "person";
   // Movie fields
   title?: string;
   original_title?: string;
