@@ -34,20 +34,11 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
 
 ## Deployment (Cloudflare Workers)
 
-Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv14/showtime`, branch `master`): a push to `master` builds and deploys automatically. For a manual deploy use `vp run deploy`.
+Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv14/showtime`, `master`): a push to `master` builds and deploys. Workers Builds settings:
 
-`wrangler deploy` auto-detects the Vite build in `dist/` and deploys it (no `-c` flag needed). The `CACHE` KV binding and the `nodejs_compat` flag come from `wrangler.jsonc`; only the two API-key secrets are set out-of-band (see Secrets above).
+- **Root directory**: repo root.
+- **Build command**: `cd apps/web && ./node_modules/.bin/vp build` (the toolchain is Vite+; there is no standalone `vite` binary).
+- **Deploy command**: `cd apps/web && ./node_modules/.bin/wrangler deploy` — run the binary directly, not via `npx`, which invokes npm and fails `EBADDEVENGINES` (the root `package.json` pins pnpm via `devEngines`). `wrangler deploy` auto-detects the Vite `dist/` build; the `CACHE` KV binding and `nodejs_compat` come from `wrangler.jsonc`.
+- **Secrets**: `TMDB_API_KEY` + `OMDB_API_KEY` on the Worker (see Secrets above).
 
-Workers Builds settings (the one non-obvious part is that CI has no global `vp`):
-
-- **Root directory**: repo root, so the pnpm workspace and catalog resolve.
-- **Build command**:
-  ```
-  cd apps/web && ./node_modules/.bin/vp build
-  ```
-  There is no standalone `vite` binary, so the build runs through the local `vp`.
-- **Node version** (the actual fix to the long "Cannot find native binding `@voidzero-dev/vite-plus-linux-x64-gnu`" saga): vite-plus's native bindings declare `engines.node: "^20.19.0 || ^22.18.0 || >=24.11.0"`. Cloudflare defaulted to Node **22.16.0**, which does not satisfy `^22.18.0`, and pnpm **silently skips optional dependencies whose `engines` don't match** — so the binding was dropped on every build. The repo pins Node via `.node-version` (`22.18.0`) so Cloudflare uses a satisfying version; with that, the normal frozen install includes the bindings and the simple build command above works. (If Cloudflare reports that version is unavailable, bump `.node-version` to any `22.18+` or `24.11+`, or set a `NODE_VERSION` build variable.) Without a build, `dist/` is empty and `wrangler deploy` fails with `entry-point @tanstack/react-start/server-entry not found`.
-- **Deploy command** — call wrangler's binary directly. `npx` would invoke npm, which aborts with `EBADDEVENGINES` because the root `package.json` pins pnpm via `devEngines.packageManager`:
-  ```
-  cd apps/web && ./node_modules/.bin/wrangler deploy
-  ```
+Node is pinned via `.node-version` (`22.18.0`) because vite-plus's native bindings need `node ^20.19 || ^22.18 || >=24.11`, and pnpm silently skips optional deps whose engine doesn't match. Bump it if Cloudflare lacks that exact version.
