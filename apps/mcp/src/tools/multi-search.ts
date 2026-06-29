@@ -1,8 +1,11 @@
 import { z } from "zod";
-import type { TmdbMultiSearchResult } from "@showtime/core";
+import type {
+  TmdbMultiSearchResult,
+  TmdbMovieSearchResult,
+  TmdbTvSearchResult,
+} from "@showtime/core";
 import { defineTool, paginatedResult } from "./define-tool.js";
-import { truncateText, extractYear } from "@showtime/core";
-import { NA } from "@showtime/core";
+import { formatTmdbMovieResult, formatTmdbTvResult } from "@showtime/core";
 
 const formatMultiSearchResult = (
   result: TmdbMultiSearchResult,
@@ -16,24 +19,14 @@ const formatMultiSearchResult = (
   if (result.media_type === "movie") {
     return {
       ...base,
-      title: result.title,
-      year: extractYear(result.release_date),
-      releaseDate: result.release_date || NA,
-      overview: truncateText(result.overview || "", 200),
-      tmdbRating: result.vote_average,
-      posterUrl: getImageUrl(result.poster_path ?? null, "w342"),
+      ...formatTmdbMovieResult(result as unknown as TmdbMovieSearchResult, getImageUrl),
     };
   }
 
   if (result.media_type === "tv") {
     return {
       ...base,
-      name: result.name,
-      year: extractYear(result.first_air_date),
-      firstAirDate: result.first_air_date || NA,
-      overview: truncateText(result.overview || "", 200),
-      tmdbRating: result.vote_average,
-      posterUrl: getImageUrl(result.poster_path ?? null, "w342"),
+      ...formatTmdbTvResult(result as unknown as TmdbTvSearchResult, getImageUrl),
     };
   }
 
