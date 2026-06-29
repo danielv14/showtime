@@ -155,16 +155,21 @@ const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
   overview: t.overview ?? "",
 });
 
-const fromTrending = (r: TmdbTrendingResult): MediaItem => ({
-  id: r.id,
-  mediaType: r.media_type,
-  title: r.title ?? r.name ?? "Untitled",
-  year: extractYear(r.release_date ?? r.first_air_date),
-  rating: r.vote_average,
-  posterUrl: img(r.poster_path, POSTER_SIZE),
-  backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-  overview: r.overview ?? "",
-});
+// Trending "all" also returns people; filter them out so they are not
+// rendered or routed as movies or TV.
+const fromTrending = (r: TmdbTrendingResult): MediaItem | null => {
+  if (r.media_type !== "movie" && r.media_type !== "tv") return null;
+  return {
+    id: r.id,
+    mediaType: r.media_type,
+    title: r.title ?? r.name ?? "Untitled",
+    year: extractYear(r.release_date ?? r.first_air_date),
+    rating: r.vote_average,
+    posterUrl: img(r.poster_path, POSTER_SIZE),
+    backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
+    overview: r.overview ?? "",
+  };
+};
 
 const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
   if (r.media_type === "person") {
@@ -315,7 +320,9 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
       tmdb.getUpcomingMovies(),
     ]);
     return {
-      trending: trending.results.map(fromTrending),
+      trending: trending.results
+        .map(fromTrending)
+        .filter((item): item is MediaItem => item !== null),
       upcoming: upcoming.results.map(fromMovie),
     };
   }),

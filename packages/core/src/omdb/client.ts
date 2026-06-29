@@ -52,6 +52,18 @@ export interface GetAllEpisodesOptions {
   seriesId: string;
 }
 
+/**
+ * Parse OMDB's `totalSeasons` string into a season count. OMDB returns "N/A"
+ * for absent fields, which would otherwise become NaN; treat any non-positive
+ * or non-numeric value as 0 seasons.
+ *
+ * Exported for tests.
+ */
+export const parseTotalSeasons = (totalSeasons: string | undefined): number => {
+  const parsed = parseInt(totalSeasons ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+};
+
 export const createOmdbClient = (apiKey: string) => {
   const kyClient: KyInstance = ky.create({
     prefixUrl: OMDB_BASE_URL,
@@ -160,10 +172,13 @@ export const createOmdbClient = (apiKey: string) => {
   };
 
   const getAllEpisodes = async (options: GetAllEpisodesOptions): Promise<OmdbSeasonResponse[]> => {
-    const series = (await getById({
+    const details = await getById({
       imdbId: options.seriesId,
-    })) as OmdbSeriesDetails;
-    const totalSeasons = parseInt(series.totalSeasons, 10);
+    });
+    if (details.Type !== "series") {
+      return [];
+    }
+    const totalSeasons = parseTotalSeasons(details.totalSeasons);
 
     // Some series have gaps where a season fetch 404s; skip those rather than
     // failing the whole series.

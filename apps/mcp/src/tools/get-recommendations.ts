@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool, paginatedResult, failWith } from "./define-tool.js";
 import { formatTmdbMovieResult } from "@showtime/core";
-import { requireAtLeastOne, resolveMovieId } from "./helpers/resolvers.js";
+import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
 
 export const getMovieRecommendationsTool = defineTool({
   name: "get_movie_recommendations",
@@ -13,22 +13,20 @@ export const getMovieRecommendationsTool = defineTool({
     title: z.string().optional().describe("Movie title to get recommendations for"),
     page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
-  handler: async ({ tmdbId, title, page }, { tmdb }) => {
+  handler: async ({ tmdbId, title, page }, clients) => {
     const guardError = requireAtLeastOne("getting movie recommendations", {
       tmdbId,
       title,
     });
     if (guardError) return failWith(guardError);
 
-    const resolved = await resolveMovieId(tmdb, "getting movie recommendations", { tmdbId, title });
-    if (!resolved.success) return failWith(resolved.error);
+    const media = await resolveMedia(clients, { mediaType: "movie", tmdbId, title });
+    const { id: movieId, name: sourceMovieTitle } = media;
 
-    const { id: movieId, title: sourceMovieTitle } = resolved.movie;
-
-    const result = await tmdb.getMovieRecommendations(movieId, { page });
+    const result = await clients.tmdb.getMovieRecommendations(movieId, { page });
 
     const formattedResults = result.results.map((movie) =>
-      formatTmdbMovieResult(movie, tmdb.getImageUrl, { includeVoteCount: true }),
+      formatTmdbMovieResult(movie, clients.tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {

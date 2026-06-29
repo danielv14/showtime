@@ -1,3 +1,4 @@
+import { NA } from "@showtime/core";
 import { Play } from "lucide-react";
 import type { EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
 import { CastList } from "./CastList";
@@ -35,7 +36,7 @@ export const DetailView = ({
     detail.mediaType === "tv" && detail.seasons
       ? `${detail.seasons} season${detail.seasons === 1 ? "" : "s"}`
       : null,
-  ].filter(Boolean);
+  ].filter((fact) => Boolean(fact) && fact !== NA);
 
   return (
     <div>
