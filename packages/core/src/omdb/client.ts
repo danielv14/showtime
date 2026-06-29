@@ -74,7 +74,7 @@ export const createOmdbClient = (apiKey: string) => {
 
   const search = async (
     type: "movie" | "series",
-    options: SearchOptions
+    options: SearchOptions,
   ): Promise<OmdbSearchResponse> => {
     const searchParams: Record<string, string | number> = {
       apikey: apiKey,
@@ -96,7 +96,7 @@ export const createOmdbClient = (apiKey: string) => {
   const searchSeries = (options: SearchOptions) => search("series", options);
 
   const getById = async (
-    options: GetByIdOptions
+    options: GetByIdOptions,
   ): Promise<OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails> => {
     const searchParams: Record<string, string> = {
       apikey: apiKey,
@@ -106,18 +106,13 @@ export const createOmdbClient = (apiKey: string) => {
 
     const response = await kyClient
       .get("", { searchParams })
-      .json<
-        | OmdbMovieDetails
-        | OmdbSeriesDetails
-        | OmdbEpisodeDetails
-        | OmdbErrorResponse
-      >();
+      .json<OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails | OmdbErrorResponse>();
 
     return handleResponse(response);
   };
 
   const getByTitle = async (
-    options: GetByTitleOptions
+    options: GetByTitleOptions,
   ): Promise<OmdbMovieDetails | OmdbSeriesDetails> => {
     const searchParams: Record<string, string> = {
       apikey: apiKey,
@@ -135,9 +130,7 @@ export const createOmdbClient = (apiKey: string) => {
     return handleResponse(response);
   };
 
-  const getEpisode = async (
-    options: GetEpisodeOptions
-  ): Promise<OmdbEpisodeDetails> => {
+  const getEpisode = async (options: GetEpisodeOptions): Promise<OmdbEpisodeDetails> => {
     const searchParams: Record<string, string | number> = {
       apikey: apiKey,
       i: options.seriesId,
@@ -152,9 +145,7 @@ export const createOmdbClient = (apiKey: string) => {
     return handleResponse(response);
   };
 
-  const getSeason = async (
-    options: GetSeasonOptions
-  ): Promise<OmdbSeasonResponse> => {
+  const getSeason = async (options: GetSeasonOptions): Promise<OmdbSeasonResponse> => {
     const searchParams: Record<string, string | number> = {
       apikey: apiKey,
       i: options.seriesId,
@@ -168,19 +159,20 @@ export const createOmdbClient = (apiKey: string) => {
     return handleResponse(response);
   };
 
-  const getAllEpisodes = async (
-    options: GetAllEpisodesOptions
-  ): Promise<OmdbSeasonResponse[]> => {
+  const getAllEpisodes = async (options: GetAllEpisodesOptions): Promise<OmdbSeasonResponse[]> => {
     const series = (await getById({
       imdbId: options.seriesId,
     })) as OmdbSeriesDetails;
     const totalSeasons = parseInt(series.totalSeasons, 10);
 
+    // Some series have gaps where a season fetch 404s; skip those rather than
+    // failing the whole series.
     const seasonPromises = Array.from({ length: totalSeasons }, (_, index) =>
-      getSeason({ seriesId: options.seriesId, season: index + 1 })
+      getSeason({ seriesId: options.seriesId, season: index + 1 }).catch(() => null),
     );
 
-    return Promise.all(seasonPromises);
+    const seasons = await Promise.all(seasonPromises);
+    return seasons.filter((season): season is OmdbSeasonResponse => season !== null);
   };
 
   return {
