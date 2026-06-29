@@ -70,7 +70,7 @@ export const DetailView = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {detail.title}
             </h1>
             {detail.tagline ? (
