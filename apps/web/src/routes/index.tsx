@@ -1,3 +1,4 @@
+import { NA } from "@showtime/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { getHomeData } from "../server/media";
@@ -7,6 +8,7 @@ import { toMediaSlug } from "../lib/slug";
 const Home = () => {
   const { trending, upcoming } = Route.useLoaderData();
   const hero = trending.find((item) => item.backdropUrl) ?? trending[0];
+  const heroYear = hero?.year && hero.year !== NA ? hero.year : null;
 
   return (
     <main>
@@ -36,7 +38,7 @@ const Home = () => {
                   {hero.rating.toFixed(1)}
                 </span>
               ) : null}
-              <span>{hero.year}</span>
+              {heroYear ? <span>{heroYear}</span> : null}
               <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-zinc-300">
                 {hero.mediaType}
               </span>
