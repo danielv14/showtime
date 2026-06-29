@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TvIdRouteImport } from './routes/tv.$id'
-import { Route as MovieIdRouteImport } from './routes/movie.$id'
+import { Route as TvSlugRouteImport } from './routes/tv.$slug'
+import { Route as MovieSlugRouteImport } from './routes/movie.$slug'
 
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
@@ -24,49 +24,49 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TvIdRoute = TvIdRouteImport.update({
-  id: '/tv/$id',
-  path: '/tv/$id',
+const TvSlugRoute = TvSlugRouteImport.update({
+  id: '/tv/$slug',
+  path: '/tv/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MovieIdRoute = MovieIdRouteImport.update({
-  id: '/movie/$id',
-  path: '/movie/$id',
+const MovieSlugRoute = MovieSlugRouteImport.update({
+  id: '/movie/$slug',
+  path: '/movie/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/search': typeof SearchRoute
-  '/movie/$id': typeof MovieIdRoute
-  '/tv/$id': typeof TvIdRoute
+  '/movie/$slug': typeof MovieSlugRoute
+  '/tv/$slug': typeof TvSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/search': typeof SearchRoute
-  '/movie/$id': typeof MovieIdRoute
-  '/tv/$id': typeof TvIdRoute
+  '/movie/$slug': typeof MovieSlugRoute
+  '/tv/$slug': typeof TvSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/search': typeof SearchRoute
-  '/movie/$id': typeof MovieIdRoute
-  '/tv/$id': typeof TvIdRoute
+  '/movie/$slug': typeof MovieSlugRoute
+  '/tv/$slug': typeof TvSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/search' | '/movie/$id' | '/tv/$id'
+  fullPaths: '/' | '/search' | '/movie/$slug' | '/tv/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/search' | '/movie/$id' | '/tv/$id'
-  id: '__root__' | '/' | '/search' | '/movie/$id' | '/tv/$id'
+  to: '/' | '/search' | '/movie/$slug' | '/tv/$slug'
+  id: '__root__' | '/' | '/search' | '/movie/$slug' | '/tv/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SearchRoute: typeof SearchRoute
-  MovieIdRoute: typeof MovieIdRoute
-  TvIdRoute: typeof TvIdRoute
+  MovieSlugRoute: typeof MovieSlugRoute
+  TvSlugRoute: typeof TvSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,18 +85,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tv/$id': {
-      id: '/tv/$id'
-      path: '/tv/$id'
-      fullPath: '/tv/$id'
-      preLoaderRoute: typeof TvIdRouteImport
+    '/tv/$slug': {
+      id: '/tv/$slug'
+      path: '/tv/$slug'
+      fullPath: '/tv/$slug'
+      preLoaderRoute: typeof TvSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/movie/$id': {
-      id: '/movie/$id'
-      path: '/movie/$id'
-      fullPath: '/movie/$id'
-      preLoaderRoute: typeof MovieIdRouteImport
+    '/movie/$slug': {
+      id: '/movie/$slug'
+      path: '/movie/$slug'
+      fullPath: '/movie/$slug'
+      preLoaderRoute: typeof MovieSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -105,8 +105,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SearchRoute: SearchRoute,
-  MovieIdRoute: MovieIdRoute,
-  TvIdRoute: TvIdRoute,
+  MovieSlugRoute: MovieSlugRoute,
+  TvSlugRoute: TvSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

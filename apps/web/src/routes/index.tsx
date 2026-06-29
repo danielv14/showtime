@@ -2,9 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { getHomeData } from "../server/media";
 import { MediaRow } from "../components/MediaRow";
+import { toMediaSlug } from "../lib/slug";
 
 const Home = () => {
-  const { trending, nowPlaying, upcoming } = Route.useLoaderData();
+  const { trending, upcoming } = Route.useLoaderData();
   const hero = trending.find((item) => item.backdropUrl) ?? trending[0];
 
   return (
@@ -46,8 +47,8 @@ const Home = () => {
               </p>
             ) : null}
             <Link
-              to={hero.mediaType === "movie" ? "/movie/$id" : "/tv/$id"}
-              params={{ id: String(hero.id) }}
+              to={hero.mediaType === "movie" ? "/movie/$slug" : "/tv/$slug"}
+              params={{ slug: toMediaSlug(hero) }}
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-semibold text-zinc-950 no-underline transition hover:bg-amber-300"
             >
               View details
@@ -58,7 +59,6 @@ const Home = () => {
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <MediaRow title="Trending this week" items={trending} />
-        <MediaRow title="Now playing in theaters" items={nowPlaying} />
         <MediaRow title="Coming soon" items={upcoming} />
       </div>
     </main>
@@ -68,4 +68,14 @@ const Home = () => {
 export const Route = createFileRoute("/")({
   component: Home,
   loader: () => getHomeData(),
+  head: () => ({
+    meta: [
+      { title: "Showtime — Trending movies & TV" },
+      {
+        name: "description",
+        content:
+          "Browse what's trending, search movies, shows and people, and find where to stream.",
+      },
+    ],
+  }),
 });

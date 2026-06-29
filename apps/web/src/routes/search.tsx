@@ -7,6 +7,7 @@ import {
 import { MediaGrid } from "../components/MediaGrid";
 import { PersonCard } from "../components/PersonCard";
 import { SearchBar } from "../components/SearchBar";
+import { searchMeta } from "../lib/seo";
 
 const SearchPage = () => {
   const { query, results } = Route.useLoaderData();
@@ -62,5 +63,6 @@ export const Route = createFileRoute("/search")({
   }),
   loaderDeps: ({ search: { q } }) => ({ q }),
   loader: ({ deps: { q } }) => searchMulti({ data: q }),
+  head: ({ loaderData }) => ({ meta: searchMeta(loaderData?.query ?? "") }),
   component: SearchPage,
 });

@@ -41,7 +41,10 @@ export const Route = createRootRoute({
           "Browse trending movies and TV shows, search, and find where to watch.",
       },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    ],
   }),
   shellComponent: RootDocument,
 });
