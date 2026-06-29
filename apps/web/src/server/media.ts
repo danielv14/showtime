@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   buildTmdbImageUrl as img,
   extractYear,
+  NA,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -99,11 +100,11 @@ export interface MediaDetail {
   ratings: ExternalRating[];
   awards: string | null;
   similar: MediaItem[];
+  imdbId?: string;
   // TV-only extras
   seasons?: number;
   episodes?: number;
   networks?: string[];
-  imdbId?: string;
 }
 
 /** One episode in the ratings heatmap. `rating` is null when IMDb has none. */
@@ -150,16 +151,21 @@ const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
   overview: t.overview ?? "",
 });
 
-const fromTrending = (r: TmdbTrendingResult): MediaItem => ({
-  id: r.id,
-  mediaType: r.media_type,
-  title: r.title ?? r.name ?? "Untitled",
-  year: extractYear(r.release_date ?? r.first_air_date),
-  rating: r.vote_average,
-  posterUrl: img(r.poster_path, POSTER_SIZE),
-  backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-  overview: r.overview ?? "",
-});
+// Trending "all" also returns people; filter them out so they are not
+// rendered or routed as movies or TV.
+const fromTrending = (r: TmdbTrendingResult): MediaItem | null => {
+  if (r.media_type !== "movie" && r.media_type !== "tv") return null;
+  return {
+    id: r.id,
+    mediaType: r.media_type,
+    title: r.title ?? r.name ?? "Untitled",
+    year: extractYear(r.release_date ?? r.first_air_date),
+    rating: r.vote_average,
+    posterUrl: img(r.poster_path, POSTER_SIZE),
+    backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
+    overview: r.overview ?? "",
+  };
+};
 
 const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
   if (r.media_type === "person") {
@@ -288,7 +294,7 @@ const mapOmdbRatings = (
 ): { ratings: ExternalRating[]; awards: string | null } => {
   if (!omdb) return { ratings: [], awards: null };
   const ratings: ExternalRating[] = [];
-  if (omdb.imdbRating && omdb.imdbRating !== "N/A") {
+  if (omdb.imdbRating && omdb.imdbRating !== NA) {
     ratings.push({ source: "IMDb", value: `${omdb.imdbRating}/10` });
   }
   for (const r of omdb.Ratings ?? []) {
@@ -296,7 +302,7 @@ const mapOmdbRatings = (
       ratings.push({ source: "Rotten Tomatoes", value: r.Value });
     }
   }
-  const awards = omdb.Awards && omdb.Awards !== "N/A" ? omdb.Awards : null;
+  const awards = omdb.Awards && omdb.Awards !== NA ? omdb.Awards : null;
   return { ratings, awards };
 };
 
@@ -310,7 +316,9 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
       tmdb.getUpcomingMovies(),
     ]);
     return {
-      trending: trending.results.map(fromTrending),
+      trending: trending.results
+        .map(fromTrending)
+        .filter((item): item is MediaItem => item !== null),
       upcoming: upcoming.results.map(fromMovie),
     };
   }),
@@ -355,7 +363,16 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           ? recommendations.results
           : ((await tmdb.getSimilarMovies(id).catch(() => null))?.results ?? []);
         const similar = rankSimilar(similarSource.map(fromMovie));
-        return shapeMovie(details, credits, providers, videos, ratings, awards, similar);
+        return shapeMovie(
+          details,
+          credits,
+          providers,
+          videos,
+          ratings,
+          awards,
+          details.imdb_id ?? undefined,
+          similar,
+        );
       }),
   );
 
@@ -378,7 +395,7 @@ export const getTvDetail = createServerFn({ method: "GET" })
           .getByTitle({
             title: details.name,
             type: "series",
-            year: year !== "N/A" ? year : undefined,
+            year: year !== NA ? year : undefined,
           })
           .catch(() => null)) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
@@ -421,6 +438,7 @@ const shapeMovie = (
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
   awards: string | null,
+  imdbId: string | undefined,
   similar: MediaItem[],
 ): MediaDetail => ({
   id: d.id,
@@ -443,6 +461,7 @@ const shapeMovie = (
   whereToWatch: mapProviders(providers),
   ratings,
   awards,
+  imdbId,
   similar,
 });
 
