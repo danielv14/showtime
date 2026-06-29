@@ -26,3 +26,18 @@ allowBuilds:
   lightningcss: true
   sharp: true
   workerd: true
+
+# Install native bindings for the CI/deploy target (Cloudflare's linux-x64 glibc)
+# as well as the local machine. Without this, a lockfile generated on macOS
+# leaves vite-plus/rolldown/oxc native bindings unextracted on Linux CI, and
+# `vp build` fails with "Cannot find native binding".
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - x64
+  libc:
+    - current
+    - glibc
