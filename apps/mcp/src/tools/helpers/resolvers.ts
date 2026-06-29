@@ -19,8 +19,8 @@ export const requireAtLeastOne = (
 
 /**
  * Core movie resolution. Resolves a movie id+title from tmdbId, imdbId, or
- * title, throwing on failure. Shared by {@link resolveMedia} and the legacy
- * {@link resolveMovieId} adapter so the resolution sequence lives in one place.
+ * title, throwing on failure. Used by {@link resolveMedia} so the resolution
+ * sequence lives in one place.
  */
 const resolveMovieRef = async (
   tmdbClient: TmdbClient,
@@ -55,7 +55,7 @@ const resolveMovieRef = async (
 
 /**
  * Core TV resolution. Resolves a TV id+name from tmdbId or title, throwing on
- * failure. Shared by {@link resolveMedia} and the legacy {@link resolveTvId}.
+ * failure. Used by {@link resolveMedia}.
  */
 const resolveTvRef = async (
   tmdbClient: TmdbClient,
@@ -116,52 +116,4 @@ export const resolveMedia = async (
 
   const movie = await resolveMovieRef(clients.tmdb, { tmdbId, imdbId, title });
   return { type: "movie", id: movie.id, name: movie.title };
-};
-
-/** Result type for movie ID resolution */
-export type ResolvedMovie = { id: number; title: string };
-
-/** Result type for TV ID resolution */
-export type ResolvedTv = { id: number; name: string };
-
-/**
- * Resolve a movie ID from various inputs (tmdbId, imdbId, or title).
- * Returns the resolved movie ID and title, or a structured error response.
- * Retained for tools not (yet) migrated to {@link resolveMedia}.
- */
-export const resolveMovieId = async (
-  tmdbClient: TmdbClient,
-  context: string,
-  options: { tmdbId?: number; imdbId?: string; title?: string },
-): Promise<
-  | { success: true; movie: ResolvedMovie }
-  | { success: false; error: ReturnType<typeof createErrorResponse> }
-> => {
-  try {
-    const movie = await resolveMovieRef(tmdbClient, options);
-    return { success: true, movie };
-  } catch (error) {
-    return { success: false, error: createErrorResponse(context, error) };
-  }
-};
-
-/**
- * Resolve a TV series ID from various inputs (tmdbId or title).
- * Returns the resolved TV ID and name, or a structured error response.
- * Retained for tools not (yet) migrated to {@link resolveMedia}.
- */
-export const resolveTvId = async (
-  tmdbClient: TmdbClient,
-  context: string,
-  options: { tmdbId?: number; title?: string },
-): Promise<
-  | { success: true; tv: ResolvedTv }
-  | { success: false; error: ReturnType<typeof createErrorResponse> }
-> => {
-  try {
-    const tv = await resolveTvRef(tmdbClient, options);
-    return { success: true, tv };
-  } catch (error) {
-    return { success: false, error: createErrorResponse(context, error) };
-  }
 };

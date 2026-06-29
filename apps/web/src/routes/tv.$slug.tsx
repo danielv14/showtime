@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { getEpisodeRatings, getTvDetail } from "../server/media";
 import { DetailView } from "../components/DetailView";
 import { mediaMeta } from "../lib/seo";
@@ -11,7 +11,9 @@ const TvDetailPage = () => {
 
 export const Route = createFileRoute("/tv/$slug")({
   loader: async ({ params }) => {
-    const detail = await getTvDetail({ data: parseMediaId(params.slug) });
+    const id = parseMediaId(params.slug);
+    if (id === null) throw notFound();
+    const detail = await getTvDetail({ data: id });
     const canonical = toMediaSlug(detail);
     if (params.slug !== canonical) {
       throw redirect({

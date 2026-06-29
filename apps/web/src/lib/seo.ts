@@ -1,3 +1,4 @@
+import { NA } from "@showtime/core";
 import type { MediaDetail } from "../server/media";
 
 const SITE = "Showtime";
@@ -7,7 +8,7 @@ const truncate = (text: string, max = 160): string =>
 
 /** Title + Open Graph / Twitter meta for a movie or TV detail page. */
 export const mediaMeta = (detail: MediaDetail) => {
-  const yearSuffix = detail.year !== "N/A" ? ` (${detail.year})` : "";
+  const yearSuffix = detail.year !== NA ? ` (${detail.year})` : "";
   const title = `${detail.title}${yearSuffix} — ${SITE}`;
   const description = detail.overview
     ? truncate(detail.overview)
