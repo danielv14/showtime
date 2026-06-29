@@ -1,9 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { BrowseSearch } from "../server/browse";
+import type { SearchSearch } from "../server/search";
 
-/** Browse route paths the pagination can target. */
-type BrowsePath = "/movies" | "/shows";
+/** Route paths the pagination can target (browse surfaces and search). */
+type PaginatedPath = "/movies" | "/shows" | "/search";
+
+/** The search shapes those routes carry; all share an optional `page`. */
+type PaginatedSearch = BrowseSearch | SearchSearch;
 
 const linkClass =
   "inline-flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 no-underline transition hover:bg-white/10";
@@ -21,15 +25,16 @@ export const Pagination = ({
   page,
   totalPages,
 }: {
-  to: BrowsePath;
+  to: PaginatedPath;
   page: number;
   totalPages: number;
 }) => {
   if (totalPages <= 1) return null;
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  // Preserve the other active filters (spread `prev`) and only change `page`.
   // Drop `page` for page 1 so the URL stays clean; otherwise set it explicitly.
-  const pageSearch = (target: number) => (prev: BrowseSearch) => ({
+  const pageSearch = (target: number) => (prev: PaginatedSearch) => ({
     ...prev,
     page: target === 1 ? undefined : target,
   });

@@ -10,6 +10,7 @@ import {
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
   type TmdbMultiSearchResult,
+  type TmdbPersonSearchResult,
   type TmdbCredits,
   type TmdbWatchProviders,
   type TmdbVideosResponse,
@@ -255,6 +256,21 @@ export const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
   }
   return null;
 };
+
+// The per-type `/search/person` endpoint returns the same person fields
+// `fromMulti`'s person branch reads, so this is a thin extraction to the shared
+// `PersonItem` shape rather than new shaping logic.
+export const fromPerson = (p: TmdbPersonSearchResult): PersonItem => ({
+  id: p.id,
+  mediaType: "person",
+  name: p.name,
+  department: p.known_for_department ?? "Acting",
+  profileUrl: img(p.profile_path, PROFILE_SIZE),
+  knownFor: (p.known_for ?? [])
+    .map((k) => k.title ?? k.name)
+    .filter((t): t is string => Boolean(t))
+    .slice(0, 3),
+});
 
 const SIMILAR_LIMIT = 18;
 
