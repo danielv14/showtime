@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
+  buildTmdbImageUrl as img,
   extractYear,
   NA,
   type TmdbMovieSearchResult,
@@ -18,14 +19,9 @@ import {
 import { getOmdb, getTmdb } from "./clients";
 import { cached, TTL } from "./cache";
 
-const IMAGE_BASE = "https://image.tmdb.org/t/p";
 const POSTER_SIZE = "w342";
 const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
-
-/** Build a public TMDB image URL. The image CDN is public; no secret involved. */
-const img = (path: string | null | undefined, size: string): string | null =>
-  path ? `${IMAGE_BASE}/${size}${path}` : null;
 
 // ----- UI-facing shapes -------------------------------------------------------
 
