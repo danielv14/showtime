@@ -1,3 +1,4 @@
+import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import type { MediaItem } from "../server/media";
@@ -5,6 +6,7 @@ import { toMediaSlug } from "../lib/slug";
 
 export const MediaCard = ({ item }: { item: MediaItem }) => {
   const to = item.mediaType === "movie" ? "/movie/$slug" : "/tv/$slug";
+  const year = item.year && item.year !== NA ? item.year : null;
   return (
     <Link to={to} params={{ slug: toMediaSlug(item) }} className="group block">
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg shadow-black/40 transition duration-200 group-hover:border-white/15">
@@ -35,7 +37,7 @@ export const MediaCard = ({ item }: { item: MediaItem }) => {
         <p className="truncate text-sm font-medium text-zinc-100 transition group-hover:text-white">
           {item.title}
         </p>
-        <p className="text-xs text-zinc-500">{item.year}</p>
+        {year ? <p className="text-xs text-zinc-500">{year}</p> : null}
       </div>
     </Link>
   );
