@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { ErrorView } from "./components/ErrorView";
 import { NotFound } from "./components/NotFound";
 
 export function getRouter() {
@@ -9,6 +10,10 @@ export function getRouter() {
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFound,
+    // Route-level error boundary applied to every route. A loader/render error
+    // is caught at the failing route and shown via ErrorView, leaving the rest
+    // of the shell intact.
+    defaultErrorComponent: ErrorView,
   });
 
   return router;
