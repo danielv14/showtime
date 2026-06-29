@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   extractYear,
   type TmdbMovieSearchResult,
+  type TmdbTvSearchResult,
   type TmdbTrendingResult,
   type TmdbMultiSearchResult,
   type TmdbCredits,
@@ -11,8 +12,10 @@ import {
   type TmdbTvDetails,
   type OmdbMovieDetails,
   type OmdbSeriesDetails,
+  type OmdbSeasonResponse,
 } from "@showtime/core";
 import { getOmdb, getTmdb } from "./clients";
+import { cached, TTL } from "./cache";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 const POSTER_SIZE = "w342";
@@ -20,10 +23,8 @@ const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
 
 /** Build a public TMDB image URL. The image CDN is public; no secret involved. */
-const img = (
-  path: string | null | undefined,
-  size: string
-): string | null => (path ? `${IMAGE_BASE}/${size}${path}` : null);
+const img = (path: string | null | undefined, size: string): string | null =>
+  path ? `${IMAGE_BASE}/${size}${path}` : null;
 
 // ----- UI-facing shapes -------------------------------------------------------
 
@@ -101,10 +102,32 @@ export interface MediaDetail {
   whereToWatch: WhereToWatch | null;
   ratings: ExternalRating[];
   awards: string | null;
+  similar: MediaItem[];
   // TV-only extras
   seasons?: number;
   episodes?: number;
   networks?: string[];
+  imdbId?: string;
+}
+
+/** One episode in the ratings heatmap. `rating` is null when IMDb has none. */
+export interface EpisodeRating {
+  episode: number;
+  title: string;
+  rating: number | null;
+  airDate: string;
+}
+
+export interface SeasonRatings {
+  season: number;
+  average: number | null;
+  episodes: EpisodeRating[];
+}
+
+export interface EpisodeRatingsData {
+  seasons: SeasonRatings[];
+  /** Highest episode number across all seasons; drives the heatmap's episode axis. */
+  maxEpisodes: number;
 }
 
 // ----- mappers ----------------------------------------------------------------
@@ -118,6 +141,17 @@ const fromMovie = (m: TmdbMovieSearchResult): MediaItem => ({
   posterUrl: img(m.poster_path, POSTER_SIZE),
   backdropUrl: img(m.backdrop_path, BACKDROP_SIZE),
   overview: m.overview ?? "",
+});
+
+const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
+  id: t.id,
+  mediaType: "tv",
+  title: t.name,
+  year: extractYear(t.first_air_date),
+  rating: t.vote_average,
+  posterUrl: img(t.poster_path, POSTER_SIZE),
+  backdropUrl: img(t.backdrop_path, BACKDROP_SIZE),
+  overview: t.overview ?? "",
 });
 
 const fromTrending = (r: TmdbTrendingResult): MediaItem => ({
@@ -160,8 +194,57 @@ const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
   return null;
 };
 
+const SIMILAR_LIMIT = 18;
+
+// TMDB returns similar/recommended titles in relevance order, which stays the
+// dominant signal. Recency and rating are gentle nudges so newer, better-liked
+// matches rise a few spots without burying TMDB's top pick.
+const RELEVANCE_WEIGHT = 1;
+const RECENCY_WEIGHT = 0.2;
+const RATING_WEIGHT = 0.1;
+const RECENCY_WINDOW_YEARS = 20;
+
+/**
+ * Dedupe by id, drop poster-less entries, then re-rank: relevance-first with a
+ * light recency + rating boost. Caps the count for the row.
+ */
+const rankSimilar = (items: MediaItem[]): MediaItem[] => {
+  const seen = new Set<number>();
+  const pool = items
+    .filter((item) => item.posterUrl)
+    .filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)));
+  if (pool.length <= 1) return pool.slice(0, SIMILAR_LIMIT);
+
+  const currentYear = new Date().getFullYear();
+  const lastIndex = pool.length - 1;
+
+  return pool
+    .map((item, index) => {
+      const relevance = 1 - index / lastIndex;
+      const year = Number.parseInt(item.year, 10);
+      const recency = Number.isFinite(year)
+        ? Math.max(
+            0,
+            Math.min(
+              1,
+              (year - (currentYear - RECENCY_WINDOW_YEARS)) / RECENCY_WINDOW_YEARS,
+            ),
+          )
+        : 0;
+      const rating = item.rating > 0 ? item.rating / 10 : 0;
+      const score =
+        RELEVANCE_WEIGHT * relevance +
+        RECENCY_WEIGHT * recency +
+        RATING_WEIGHT * rating;
+      return { item, index, score };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, SIMILAR_LIMIT)
+    .map((scored) => scored.item);
+};
+
 const mapCast = (credits: TmdbCredits | null): CastMember[] =>
-  (credits?.cast ?? []).slice(0, 14).map((c) => ({
+  (credits?.cast ?? []).slice(0, 21).map((c) => ({
     id: c.id,
     name: c.name,
     character: c.character,
@@ -179,9 +262,7 @@ const crewNames = (credits: TmdbCredits | null, jobs: string[]): string[] => {
 const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null => {
   const results = videos?.results ?? [];
   const trailer =
-    results.find(
-      (v) => v.site === "YouTube" && v.type === "Trailer" && v.official
-    ) ??
+    results.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ??
     results.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
     results.find((v) => v.site === "YouTube");
   return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
@@ -189,17 +270,14 @@ const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null => {
 
 const PREFERRED_REGIONS = ["SE", "US", "GB"];
 
-const mapProviders = (
-  providers: TmdbWatchProviders | null
-): WhereToWatch | null => {
+const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch | null => {
   const results = providers?.results ?? {};
-  const region =
-    PREFERRED_REGIONS.find((r) => results[r]) ?? Object.keys(results)[0];
+  const region = PREFERRED_REGIONS.find((r) => results[r]) ?? Object.keys(results)[0];
   if (!region) return null;
   const data = results[region];
   if (!data) return null;
   const toProvider = (
-    list: { provider_name: string; logo_path: string }[] | undefined
+    list: { provider_name: string; logo_path: string }[] | undefined,
   ): WatchProvider[] =>
     (list ?? []).map((p) => ({
       name: p.provider_name,
@@ -215,7 +293,7 @@ const mapProviders = (
 };
 
 const mapOmdbRatings = (
-  omdb: OmdbMovieDetails | OmdbSeriesDetails | null
+  omdb: OmdbMovieDetails | OmdbSeriesDetails | null,
 ): { ratings: ExternalRating[]; awards: string | null } => {
   if (!omdb) return { ratings: [], awards: null };
   const ratings: ExternalRating[] = [];
@@ -227,29 +305,24 @@ const mapOmdbRatings = (
       ratings.push({ source: "Rotten Tomatoes", value: r.Value });
     }
   }
-  if (omdb.Metascore && omdb.Metascore !== "N/A") {
-    ratings.push({ source: "Metacritic", value: `${omdb.Metascore}/100` });
-  }
   const awards = omdb.Awards && omdb.Awards !== "N/A" ? omdb.Awards : null;
   return { ratings, awards };
 };
 
 // ----- server functions -------------------------------------------------------
 
-export const getHomeData = createServerFn({ method: "GET" }).handler(
-  async () => {
+export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
+  cached("home", TTL.hour, async () => {
     const tmdb = getTmdb();
-    const [trending, nowPlaying, upcoming] = await Promise.all([
+    const [trending, upcoming] = await Promise.all([
       tmdb.getTrending("all", "week"),
-      tmdb.getNowPlayingMovies(),
       tmdb.getUpcomingMovies(),
     ]);
     return {
       trending: trending.results.map(fromTrending),
-      nowPlaying: nowPlaying.results.map(fromMovie),
       upcoming: upcoming.results.map(fromMovie),
     };
-  }
+  }),
 );
 
 export const searchMulti = createServerFn({ method: "GET" })
@@ -267,46 +340,88 @@ export const searchMulti = createServerFn({ method: "GET" })
 
 export const getMovieDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(async ({ data: id }): Promise<MediaDetail> => {
-    const tmdb = getTmdb();
-    const omdb = getOmdb();
-    const [details, credits, providers, videos] = await Promise.all([
-      tmdb.getMovieDetails(id),
-      tmdb.getMovieCredits(id).catch(() => null),
-      tmdb.getWatchProviders(id).catch(() => null),
-      tmdb.getMovieVideos(id).catch(() => null),
-    ]);
-    const omdbData = details.imdb_id
-      ? ((await omdb
-          .getById({ imdbId: details.imdb_id })
-          .catch(() => null)) as OmdbMovieDetails | null)
-      : null;
-    const { ratings, awards } = mapOmdbRatings(omdbData);
-    return shapeMovie(details, credits, providers, videos, ratings, awards);
-  });
+  .handler(
+    async ({ data: id }): Promise<MediaDetail> =>
+      cached(`movie-detail:${id}`, TTL.day, async () => {
+        const tmdb = getTmdb();
+        const omdb = getOmdb();
+        const [details, credits, providers, videos, recommendations] = await Promise.all([
+          tmdb.getMovieDetails(id),
+          tmdb.getMovieCredits(id).catch(() => null),
+          tmdb.getWatchProviders(id).catch(() => null),
+          tmdb.getMovieVideos(id).catch(() => null),
+          tmdb.getMovieRecommendations(id).catch(() => null),
+        ]);
+        const omdbData = details.imdb_id
+          ? ((await omdb
+              .getById({ imdbId: details.imdb_id })
+              .catch(() => null)) as OmdbMovieDetails | null)
+          : null;
+        const { ratings, awards } = mapOmdbRatings(omdbData);
+        // Recommendations are usually higher quality than /similar; fall back to
+        // /similar only when TMDB has no recommendations for this title.
+        const similarSource = recommendations?.results?.length
+          ? recommendations.results
+          : ((await tmdb.getSimilarMovies(id).catch(() => null))?.results ?? []);
+        const similar = rankSimilar(similarSource.map(fromMovie));
+        return shapeMovie(details, credits, providers, videos, ratings, awards, similar);
+      }),
+  );
 
 export const getTvDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(async ({ data: id }): Promise<MediaDetail> => {
-    const tmdb = getTmdb();
-    const omdb = getOmdb();
-    const [details, credits, providers, videos] = await Promise.all([
-      tmdb.getTvDetails(id),
-      tmdb.getMovieCredits(id).catch(() => null), // movie/{id}/credits shape == tv credits
-      tmdb.getTvWatchProviders(id).catch(() => null),
-      tmdb.getTvVideos(id).catch(() => null),
-    ]);
-    const year = extractYear(details.first_air_date);
-    const omdbData = (await omdb
-      .getByTitle({
-        title: details.name,
-        type: "series",
-        year: year !== "N/A" ? year : undefined,
-      })
-      .catch(() => null)) as OmdbSeriesDetails | null;
-    const { ratings, awards } = mapOmdbRatings(omdbData);
-    return shapeTv(details, credits, providers, videos, ratings, awards);
-  });
+  .handler(
+    async ({ data: id }): Promise<MediaDetail> =>
+      cached(`tv-detail:${id}`, TTL.day, async () => {
+        const tmdb = getTmdb();
+        const omdb = getOmdb();
+        const [details, credits, providers, videos, recommendations] = await Promise.all([
+          tmdb.getTvDetails(id),
+          tmdb.getTvCredits(id).catch(() => null),
+          tmdb.getTvWatchProviders(id).catch(() => null),
+          tmdb.getTvVideos(id).catch(() => null),
+          tmdb.getTvRecommendations(id).catch(() => null),
+        ]);
+        const year = extractYear(details.first_air_date);
+        const omdbData = (await omdb
+          .getByTitle({
+            title: details.name,
+            type: "series",
+            year: year !== "N/A" ? year : undefined,
+          })
+          .catch(() => null)) as OmdbSeriesDetails | null;
+        const { ratings, awards } = mapOmdbRatings(omdbData);
+        const similarSource = recommendations?.results?.length
+          ? recommendations.results
+          : ((await tmdb.getSimilarTv(id).catch(() => null))?.results ?? []);
+        const similar = rankSimilar(similarSource.map(fromTv));
+        return shapeTv(
+          details,
+          credits,
+          providers,
+          videos,
+          ratings,
+          awards,
+          omdbData?.imdbID,
+          similar,
+        );
+      }),
+  );
+
+/**
+ * Per-episode IMDb ratings across all seasons, for the heatmap. This is the
+ * heaviest OMDB consumer (one call per season), so it carries the longest TTL.
+ */
+export const getEpisodeRatings = createServerFn({ method: "GET" })
+  .validator((imdbId: string) => imdbId)
+  .handler(
+    async ({ data: imdbId }): Promise<EpisodeRatingsData> =>
+      cached(`episodes:${imdbId}`, TTL.week, async () => {
+        const omdb = getOmdb();
+        const seasons = await omdb.getAllEpisodes({ seriesId: imdbId });
+        return shapeEpisodeRatings(seasons);
+      }),
+  );
 
 const shapeMovie = (
   d: TmdbMovieDetails,
@@ -314,7 +429,8 @@ const shapeMovie = (
   providers: TmdbWatchProviders | null,
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
-  awards: string | null
+  awards: string | null,
+  similar: MediaItem[],
 ): MediaDetail => ({
   id: d.id,
   mediaType: "movie",
@@ -336,6 +452,7 @@ const shapeMovie = (
   whereToWatch: mapProviders(providers),
   ratings,
   awards,
+  similar,
 });
 
 const shapeTv = (
@@ -344,7 +461,9 @@ const shapeTv = (
   providers: TmdbWatchProviders | null,
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
-  awards: string | null
+  awards: string | null,
+  imdbId: string | undefined,
+  similar: MediaItem[],
 ): MediaDetail => ({
   id: d.id,
   mediaType: "tv",
@@ -369,4 +488,46 @@ const shapeTv = (
   seasons: d.number_of_seasons,
   episodes: d.number_of_episodes,
   networks: (d.networks ?? []).map((n) => n.name),
+  imdbId,
+  similar,
 });
+
+const parseRating = (value: string): number | null => {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/** Shape OMDB season responses into the heatmap structure, sorted and cleaned. */
+const shapeEpisodeRatings = (seasons: OmdbSeasonResponse[]): EpisodeRatingsData => {
+  const shaped = seasons
+    .map((season) => {
+      const episodes = season.Episodes.map((ep) => ({
+        episode: Number.parseInt(ep.Episode, 10),
+        title: ep.Title,
+        rating: parseRating(ep.imdbRating),
+        airDate: ep.Released,
+      }))
+        .filter((ep) => Number.isFinite(ep.episode))
+        .sort((a, b) => a.episode - b.episode);
+
+      const rated = episodes.filter((ep) => ep.rating !== null);
+      const average = rated.length
+        ? rated.reduce((sum, ep) => sum + (ep.rating ?? 0), 0) / rated.length
+        : null;
+
+      return {
+        season: Number.parseInt(season.Season, 10),
+        average,
+        episodes,
+      };
+    })
+    .filter((season) => Number.isFinite(season.season) && season.episodes.length)
+    .sort((a, b) => a.season - b.season);
+
+  const maxEpisodes = shaped.reduce(
+    (max, season) => Math.max(max, ...season.episodes.map((episode) => episode.episode)),
+    0,
+  );
+
+  return { seasons: shaped, maxEpisodes };
+};

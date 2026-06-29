@@ -1,6 +1,8 @@
-import { Play, Star } from "lucide-react";
+import { Play } from "lucide-react";
 import type { ExternalRating, MediaDetail } from "../server/media";
 import { CastList } from "./CastList";
+import { EpisodeRatings } from "./EpisodeRatings";
+import { MediaRow } from "./MediaRow";
 import { WhereToWatch } from "./WhereToWatch";
 
 const ratingAccent: Record<string, string> = {
@@ -14,9 +16,7 @@ const RatingChip = ({ rating }: { rating: ExternalRating }) => (
     <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
       {rating.source}
     </span>
-    <span
-      className={`text-sm font-bold ${ratingAccent[rating.source] ?? "text-zinc-100"}`}
-    >
+    <span className={`text-sm font-bold ${ratingAccent[rating.source] ?? "text-zinc-100"}`}>
       {rating.value}
     </span>
   </div>
@@ -92,20 +92,13 @@ export const DetailView = ({ detail }: { detail: MediaDetail }) => {
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {detail.tmdbRating > 0 ? (
-                <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5">
-                  <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                  <span className="text-sm font-bold text-zinc-100">
-                    {detail.tmdbRating.toFixed(1)}
-                  </span>
-                  <span className="text-xs text-zinc-500">TMDB</span>
-                </div>
-              ) : null}
-              {detail.ratings.map((rating) => (
-                <RatingChip key={rating.source} rating={rating} />
-              ))}
-            </div>
+            {detail.ratings.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {detail.ratings.map((rating) => (
+                  <RatingChip key={rating.source} rating={rating} />
+                ))}
+              </div>
+            ) : null}
 
             {detail.overview ? (
               <p className="mt-5 max-w-2xl text-sm leading-relaxed text-zinc-300">
@@ -119,17 +112,13 @@ export const DetailView = ({ detail }: { detail: MediaDetail }) => {
                   <span className="text-zinc-500">
                     {detail.mediaType === "tv" ? "Created by" : "Director"}:{" "}
                   </span>
-                  <span className="text-zinc-200">
-                    {detail.directors.join(", ")}
-                  </span>
+                  <span className="text-zinc-200">{detail.directors.join(", ")}</span>
                 </p>
               ) : null}
               {detail.writers.length > 0 ? (
                 <p>
                   <span className="text-zinc-500">Writers: </span>
-                  <span className="text-zinc-200">
-                    {detail.writers.slice(0, 3).join(", ")}
-                  </span>
+                  <span className="text-zinc-200">{detail.writers.slice(0, 3).join(", ")}</span>
                 </p>
               ) : null}
             </div>
@@ -161,14 +150,21 @@ export const DetailView = ({ detail }: { detail: MediaDetail }) => {
           <WhereToWatch data={detail.whereToWatch} />
         </section>
 
+        {detail.mediaType === "tv" && detail.imdbId ? (
+          <EpisodeRatings imdbId={detail.imdbId} />
+        ) : null}
+
         {detail.cast.length > 0 ? (
           <section>
-            <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">
-              Top cast
-            </h2>
+            <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">Top cast</h2>
             <CastList cast={detail.cast} />
           </section>
         ) : null}
+
+        <MediaRow
+          title={detail.mediaType === "tv" ? "Similar series" : "Similar movies"}
+          items={detail.similar}
+        />
       </div>
     </div>
   );
