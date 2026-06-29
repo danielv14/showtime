@@ -10,6 +10,7 @@ import type {
   TmdbPersonSearchResult,
   TmdbPersonDetails,
   TmdbPersonMovieCredits,
+  TmdbPersonCombinedCredits,
   TmdbMovieDetails,
   TmdbCredits,
   TmdbWatchProviders,
@@ -166,6 +167,10 @@ export const createTmdbClient = (
 
   const getPersonMovieCredits = async (personId: number): Promise<TmdbPersonMovieCredits> => {
     return request<TmdbPersonMovieCredits>(`person/${personId}/movie_credits`);
+  };
+
+  const getPersonCombinedCredits = async (personId: number): Promise<TmdbPersonCombinedCredits> => {
+    return request<TmdbPersonCombinedCredits>(`person/${personId}/combined_credits`);
   };
 
   const getMovieDetails = async (movieId: number): Promise<TmdbMovieDetails> => {
@@ -385,6 +390,7 @@ export const createTmdbClient = (
     searchPerson,
     getPersonDetails,
     getPersonMovieCredits,
+    getPersonCombinedCredits,
     getMovieDetails,
     getMovieByImdbId,
     getMovieCredits,

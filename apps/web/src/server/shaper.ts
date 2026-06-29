@@ -15,6 +15,9 @@ import {
   type TmdbVideosResponse,
   type TmdbMovieDetails,
   type TmdbTvDetails,
+  type TmdbPersonDetails,
+  type TmdbPersonCombinedCredits,
+  type TmdbCombinedCredit,
   type OmdbMovieDetails,
   type OmdbSeriesDetails,
   type OmdbSeasonResponse,
@@ -61,6 +64,16 @@ export interface CastMember {
   profileUrl: string | null;
 }
 
+/**
+ * A named person carried alongside their TMDB id, so a director/creator/writer
+ * credit on a detail page can link to that person's page rather than render a
+ * dead name string.
+ */
+export interface CreditName {
+  id: number;
+  name: string;
+}
+
 export interface WatchProvider {
   name: string;
   logoUrl: string | null;
@@ -94,8 +107,8 @@ export interface MediaDetail {
   tmdbVotes: number;
   status: string;
   cast: CastMember[];
-  directors: string[];
-  writers: string[];
+  directors: CreditName[];
+  writers: CreditName[];
   trailerUrl: string | null;
   whereToWatch: WhereToWatch | null;
   ratings: ExternalRating[];
@@ -132,6 +145,37 @@ export interface EpisodeRatingsData {
   seasons: SeasonRatings[];
   /** Highest episode number across all seasons; drives the heatmap's episode axis. */
   maxEpisodes: number;
+}
+
+/**
+ * One filmography entry on a person page. It is a superset of `MediaItem` so it
+ * renders with the existing `MediaCard` (which links by media type), plus a
+ * `role` label (the character played, or the crew job(s)) shown under the card.
+ */
+export interface PersonCredit extends MediaItem {
+  role: string;
+}
+
+/** A role-grouped section of a person's filmography (e.g. "Acting", "Directing"). */
+export interface FilmographySection {
+  department: string;
+  count: number;
+  credits: PersonCredit[];
+}
+
+/** UI shape for a person page: identity header, "known for" row, filmography. */
+export interface PersonDetail {
+  id: number;
+  name: string;
+  profileUrl: string | null;
+  biography: string;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  knownForDepartment: string;
+  imdbId: string | null;
+  knownFor: PersonCredit[];
+  filmography: FilmographySection[];
 }
 
 // ----- mappers ----------------------------------------------------------------
@@ -262,10 +306,11 @@ const mapCast = (credits: TmdbCredits | null): CastMember[] =>
     profileUrl: img(c.profile_path, PROFILE_SIZE),
   }));
 
-const crewNames = (credits: TmdbCredits | null, jobs: string[]): string[] =>
-  // crewByJob dedupes by id; collapse duplicate display names too so the facts
-  // row never renders the same name twice (two distinct people who share a name).
-  Array.from(new Set(crewByJob(credits?.crew, jobs).map((member) => member.name)));
+// crewByJob dedupes by id. We keep id alongside name so each credit can link to
+// the person page; two distinct people who share a name stay separate (their ids
+// differ), which is the correct behaviour once names become links.
+const crewCredits = (credits: TmdbCredits | null, jobs: string[]): CreditName[] =>
+  crewByJob(credits?.crew, jobs).map((member) => ({ id: member.id, name: member.name }));
 
 export const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null =>
   selectTrailerUrl(videos);
@@ -319,8 +364,8 @@ export const shapeMovie = (
   tmdbVotes: d.vote_count,
   status: d.status,
   cast: mapCast(credits),
-  directors: crewNames(credits, ["Director"]),
-  writers: crewNames(credits, ["Screenplay", "Writer", "Story"]),
+  directors: crewCredits(credits, ["Director"]),
+  writers: crewCredits(credits, ["Screenplay", "Writer", "Story"]),
   trailerUrl: firstTrailerUrl(videos),
   whereToWatch: mapProviders(providers),
   ratings,
@@ -353,7 +398,7 @@ export const shapeTv = (
   tmdbVotes: d.vote_count,
   status: d.status,
   cast: mapCast(credits),
-  directors: (d.created_by ?? []).map((c) => c.name),
+  directors: (d.created_by ?? []).map((c) => ({ id: c.id, name: c.name })),
   writers: [],
   trailerUrl: firstTrailerUrl(videos),
   whereToWatch: mapProviders(providers),
@@ -366,6 +411,162 @@ export const shapeTv = (
   imdbId,
   similar,
 });
+
+// ----- person shaping ---------------------------------------------------------
+
+const PERSON_PROFILE_SIZE = "h632";
+const KNOWN_FOR_LIMIT = 10;
+/** Acting credits collapse into one section; crew credits group by department. */
+const DEPT_ACTING = "Acting";
+
+const creditTitle = (c: TmdbCombinedCredit): string => c.title ?? c.name ?? "Untitled";
+const creditDate = (c: TmdbCombinedCredit): string => c.release_date ?? c.first_air_date ?? "";
+const isMovieOrTv = (
+  c: TmdbCombinedCredit,
+): c is TmdbCombinedCredit & { media_type: "movie" | "tv" } =>
+  c.media_type === "movie" || c.media_type === "tv";
+
+/** Mutable accumulator while grouping; a title may carry several roles in a section. */
+interface CreditAccum {
+  id: number;
+  mediaType: "movie" | "tv";
+  title: string;
+  date: string;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  rating: number;
+  voteCount: number;
+  roles: string[];
+}
+
+const toPersonCredit = (accum: CreditAccum, separator: string): PersonCredit => ({
+  id: accum.id,
+  mediaType: accum.mediaType,
+  title: accum.title,
+  year: extractYear(accum.date),
+  rating: accum.rating,
+  posterUrl: accum.posterUrl,
+  backdropUrl: accum.backdropUrl,
+  overview: "",
+  role: accum.roles.filter(Boolean).join(separator),
+});
+
+/**
+ * Order sections so the person's primary discipline leads, then the rest by how
+ * much they did in each (count desc), with an alphabetical tiebreak for stability.
+ */
+const sectionOrder =
+  (knownForDepartment: string) =>
+  (a: FilmographySection, b: FilmographySection): number => {
+    if (a.department === knownForDepartment) return -1;
+    if (b.department === knownForDepartment) return 1;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.department.localeCompare(b.department);
+  };
+
+/**
+ * Shape a person's details + combined credits into the person-page UI shape.
+ *
+ * Pure and synchronous (the unit under test). It groups credits by role into
+ * sections, de-duplicates a title that appears under several jobs within one
+ * section (collapsing those jobs into a single role label), sorts each section
+ * newest first, counts each section, and picks the "known for" highlights by
+ * popularity (vote count). A pure director yields only a Directing section; a
+ * pure actor only an Acting section; someone who does both yields both.
+ */
+export const shapePerson = (
+  details: TmdbPersonDetails,
+  credits: TmdbPersonCombinedCredits,
+): PersonDetail => {
+  const byDepartment = new Map<string, Map<number, CreditAccum>>();
+
+  const add = (c: TmdbCombinedCredit, department: string, role: string): void => {
+    if (!isMovieOrTv(c)) return;
+    let group = byDepartment.get(department);
+    if (!group) {
+      group = new Map<number, CreditAccum>();
+      byDepartment.set(department, group);
+    }
+    const existing = group.get(c.id);
+    if (existing) {
+      // Same title, different job within the section (e.g. wrote and produced):
+      // keep one entry and merge the role labels rather than listing it twice.
+      if (role && !existing.roles.includes(role)) existing.roles.push(role);
+      return;
+    }
+    group.set(c.id, {
+      id: c.id,
+      mediaType: c.media_type,
+      title: creditTitle(c),
+      date: creditDate(c),
+      posterUrl: img(c.poster_path, POSTER_SIZE),
+      backdropUrl: img(c.backdrop_path, BACKDROP_SIZE),
+      rating: c.vote_average ?? 0,
+      voteCount: c.vote_count ?? 0,
+      roles: role ? [role] : [],
+    });
+  };
+
+  for (const c of credits.cast ?? []) add(c, DEPT_ACTING, (c.character ?? "").trim());
+  for (const c of credits.crew ?? [])
+    add(c, (c.department ?? "").trim() || "Crew", (c.job ?? "").trim());
+
+  const filmography: FilmographySection[] = Array.from(byDepartment.entries())
+    .map(([department, group]) => {
+      const separator = department === DEPT_ACTING ? " / " : ", ";
+      const sectionCredits = Array.from(group.values())
+        // Newest first; entries with no date ("") sort to the bottom.
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map((accum) => toPersonCredit(accum, separator));
+      return { department, count: sectionCredits.length, credits: sectionCredits };
+    })
+    .sort(sectionOrder((details.known_for_department ?? "").trim()));
+
+  // "Known for": most popular titles by vote count, de-duped across cast + crew,
+  // limited to ones with a poster so the highlights row stays visually clean.
+  const bestById = new Map<number, { credit: PersonCredit; voteCount: number }>();
+  const consider = (c: TmdbCombinedCredit, role: string): void => {
+    if (!isMovieOrTv(c) || !c.poster_path) return;
+    const voteCount = c.vote_count ?? 0;
+    const existing = bestById.get(c.id);
+    if (existing && existing.voteCount >= voteCount) return;
+    bestById.set(c.id, {
+      voteCount,
+      credit: {
+        id: c.id,
+        mediaType: c.media_type,
+        title: creditTitle(c),
+        year: extractYear(creditDate(c)),
+        rating: c.vote_average ?? 0,
+        posterUrl: img(c.poster_path, POSTER_SIZE),
+        backdropUrl: img(c.backdrop_path, BACKDROP_SIZE),
+        overview: "",
+        role,
+      },
+    });
+  };
+  for (const c of credits.cast ?? []) consider(c, (c.character ?? "").trim());
+  for (const c of credits.crew ?? []) consider(c, (c.job ?? "").trim());
+
+  const knownFor = Array.from(bestById.values())
+    .sort((a, b) => b.voteCount - a.voteCount)
+    .slice(0, KNOWN_FOR_LIMIT)
+    .map((entry) => entry.credit);
+
+  return {
+    id: details.id,
+    name: details.name,
+    profileUrl: img(details.profile_path, PERSON_PROFILE_SIZE),
+    biography: details.biography ?? "",
+    birthday: details.birthday,
+    deathday: details.deathday,
+    placeOfBirth: details.place_of_birth,
+    knownForDepartment: details.known_for_department ?? "",
+    imdbId: details.imdb_id,
+    knownFor,
+    filmography,
+  };
+};
 
 const parseRating = (value: string): number | null => {
   const parsed = Number.parseFloat(value);

@@ -75,6 +75,41 @@ export interface TmdbPersonMovieCredits {
   crew: TmdbMovieCredit[];
 }
 
+// Combined credits (person/{id}/combined_credits): movie and TV credits in one
+// response. Each entry carries a `media_type` so consumers can tell films from
+// series. Movies use `title`/`release_date`; TV uses `name`/`first_air_date`.
+export interface TmdbCombinedCredit {
+  id: number;
+  media_type: "movie" | "tv";
+  // Movie fields
+  title?: string;
+  original_title?: string;
+  release_date?: string;
+  // TV fields
+  name?: string;
+  original_name?: string;
+  first_air_date?: string;
+  // Common fields
+  overview?: string;
+  poster_path: string | null;
+  backdrop_path?: string | null;
+  vote_average: number;
+  vote_count: number;
+  genre_ids?: number[];
+  // Cast-only
+  character?: string;
+  // Crew-only
+  job?: string;
+  department?: string;
+  credit_id: string;
+}
+
+export interface TmdbPersonCombinedCredits {
+  id: number;
+  cast: TmdbCombinedCredit[];
+  crew: TmdbCombinedCredit[];
+}
+
 // Movie Details
 export interface TmdbMovieDetails {
   id: number;
