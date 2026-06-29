@@ -6,7 +6,6 @@ import {
   OmdbApiError,
   type OmdbMovieDetails,
   type OmdbSeriesDetails,
-  type TmdbGenre,
 } from "@showtime/core";
 import { getOmdb, getTmdb } from "./clients";
 import { cached, TTL } from "./cache";
@@ -15,6 +14,7 @@ import {
   toDiscoverMovieOptions,
   toDiscoverTvOptions,
   type BrowseFilters,
+  type GenreOption,
 } from "./browse";
 import {
   fromMovie,
@@ -128,12 +128,12 @@ export const browseTv = createServerFn({ method: "GET" })
 // Genre lists change rarely, so they carry a long TTL. They feed the genre
 // control's options so the choices match what TMDB actually has.
 export const getMovieGenres = createServerFn({ method: "GET" }).handler(
-  async (): Promise<TmdbGenre[]> =>
+  async (): Promise<GenreOption[]> =>
     cached("genres:movie", TTL.week, async () => getTmdb().getMovieGenres()),
 );
 
 export const getTvGenres = createServerFn({ method: "GET" }).handler(
-  async (): Promise<TmdbGenre[]> =>
+  async (): Promise<GenreOption[]> =>
     cached("genres:tv", TTL.week, async () => getTmdb().getTvGenres()),
 );
 

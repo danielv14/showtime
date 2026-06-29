@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { browseTv, getTvGenres } from "../server/media";
-import { normalizeBrowseFilters, toBrowseSearch, type BrowseSearch } from "../server/browse";
+import {
+  BROWSE_YEAR_FLOOR,
+  normalizeBrowseFilters,
+  toBrowseSearch,
+  type BrowseSearch,
+} from "../server/browse";
 import { BrowseView } from "../components/BrowseView";
 import { browseMeta } from "../lib/seo";
-
-const EARLIEST_YEAR = 1950;
 
 const ShowsPage = () => {
   const { items, page, totalPages, filters, genres, yearRange } = Route.useLoaderData();
@@ -34,7 +37,7 @@ export const Route = createFileRoute("/shows")({
       ...result,
       filters,
       genres,
-      yearRange: { min: EARLIEST_YEAR, max: currentYear + 1 },
+      yearRange: { min: BROWSE_YEAR_FLOOR, max: currentYear + 1 },
     };
   },
   head: ({ loaderData }) => {

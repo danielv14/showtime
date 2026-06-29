@@ -1,4 +1,4 @@
-import type { DiscoverMoviesOptions, DiscoverTvOptions } from "@showtime/core";
+import { TMDB_MAX_PAGES, type DiscoverMoviesOptions, type DiscoverTvOptions } from "@showtime/core";
 
 /**
  * Pure browse-filter module: the single source of truth for "what does this
@@ -64,8 +64,16 @@ const FUTURE_YEAR_SLACK = 5;
 const MAX_RATING = 10;
 const MIN_RATING = 1;
 
-/** TMDB caps pagination at 500 pages; mirrored here so normalisation never asks for a page upstream refuses. */
-export const MAX_BROWSE_PAGE = 500;
+/** TMDB caps pagination at 500 pages, so normalisation never asks for a page upstream refuses. */
+export const MAX_BROWSE_PAGE = TMDB_MAX_PAGES;
+
+/**
+ * Earliest year offered in the browse year control. Narrower than the
+ * normaliser's `MIN_YEAR` floor (which still accepts older hand-edited links);
+ * this is just the oldest year worth listing as a dropdown option. Shared by
+ * both browse routes so the span is defined once.
+ */
+export const BROWSE_YEAR_FLOOR = 1950;
 
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
