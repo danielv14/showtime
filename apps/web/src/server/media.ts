@@ -174,7 +174,7 @@ const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
       department: r.known_for_department ?? "Acting",
       profileUrl: img(r.profile_path, PROFILE_SIZE),
       knownFor: (r.known_for ?? [])
-        .map((k) => k.title)
+        .map((k) => k.title ?? k.name)
         .filter((t): t is string => Boolean(t))
         .slice(0, 3),
     };

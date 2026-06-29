@@ -277,6 +277,23 @@ export interface TmdbTrendingResult {
   genre_ids: number[];
 }
 
+// An entry in a person's `known_for`, which TMDB returns as a mix of movies and
+// TV shows. Movies carry `title`, TV shows carry `name`.
+export interface TmdbKnownForItem {
+  id: number;
+  media_type: "movie" | "tv";
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  overview?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  vote_average?: number;
+  vote_count?: number;
+  genre_ids?: number[];
+}
+
 // Multi-search result (can be movie, TV, or person)
 export interface TmdbMultiSearchResult {
   id: number;
@@ -291,7 +308,7 @@ export interface TmdbMultiSearchResult {
   first_air_date?: string;
   // Person fields
   known_for_department?: string;
-  known_for?: TmdbMovieSearchResult[];
+  known_for?: TmdbKnownForItem[];
   // Common fields
   overview?: string;
   poster_path?: string | null;
