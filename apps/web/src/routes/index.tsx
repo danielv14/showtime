@@ -28,7 +28,7 @@ const Home = () => {
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400">
               Trending now
             </p>
-            <h1 className="mt-2 max-w-2xl font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">
+            <h1 className="mt-2 max-w-2xl text-4xl font-bold tracking-tight text-white sm:text-5xl">
               {hero.title}
             </h1>
             <div className="mt-3 flex items-center gap-3 text-sm text-zinc-400">

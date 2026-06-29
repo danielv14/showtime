@@ -30,6 +30,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Headings get the display face; everything else inherits Inter from body. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+}
+
 /* Slim, dark scrollbars for the horizontal media rows */
 * {
   scrollbar-width: thin;
