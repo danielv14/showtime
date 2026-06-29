@@ -41,11 +41,11 @@ Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv
 Workers Builds settings (the one non-obvious part is that CI has no global `vp`):
 
 - **Root directory**: repo root, so the pnpm workspace and catalog resolve.
-- **Build command** — bootstraps Vite+, installs, builds the web app:
+- **Build command** (must be set — without a build, `dist/` is empty and `wrangler deploy` fails with `entry-point @tanstack/react-start/server-entry not found`):
   ```
-  curl -fsSL https://vite.plus | bash && export PATH="$HOME/.vite-plus/bin:$PATH" && vp install && vp run web#build
+  cd apps/web && ./node_modules/.bin/vp build
   ```
-  There is no standalone `vite` binary (the toolchain is Vite+), and `vp install` honors the `allowBuilds` approvals in the root `pnpm-workspace.yaml` (e.g. `workerd`) that a plain `pnpm install` would skip — so CI must use `vp`, not bare pnpm.
+  Cloudflare auto-runs `pnpm install --frozen-lockfile` before this, which honors the `allowBuilds` approvals in the root `pnpm-workspace.yaml` (so `workerd`/`esbuild`/`sharp` build) and installs the local `vp` binary. There is no standalone `vite` binary, so the build goes through that local `vp`.
 - **Deploy command** — call wrangler's binary directly. `npx` would invoke npm, which aborts with `EBADDEVENGINES` because the root `package.json` pins pnpm via `devEngines.packageManager`:
   ```
   cd apps/web && ./node_modules/.bin/wrangler deploy
