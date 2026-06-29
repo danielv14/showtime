@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Secrets (TMDB / OMDB keys, Cloudflare local vars) — never commit
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/settings.json

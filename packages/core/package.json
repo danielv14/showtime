@@ -1,0 +1,26 @@
+{
+  "name": "@showtime/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared TMDB + OMDB integration for the showtime MCP server and website.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tmdb": "./src/tmdb/index.ts",
+    "./omdb": "./src/omdb/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "ky": "^1.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}
