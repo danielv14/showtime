@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
 import { filterCrewByJob, filterCrewByDepartment } from "@showtime/core";
 import { NA } from "@showtime/core";
+import type { TmdbMovieDetails } from "@showtime/core";
 import { requireAtLeastOne } from "./helpers/resolvers.js";
 
 export const getMovieTool = defineTool({
@@ -27,9 +28,10 @@ export const getMovieTool = defineTool({
 
     let finalImdbId: string | undefined = imdbId;
     let finalTmdbId: number | undefined = tmdbId;
+    let tmdbDetails: TmdbMovieDetails | undefined;
 
     if (tmdbId && !imdbId) {
-      const tmdbDetails = await tmdb.getMovieDetails(tmdbId);
+      tmdbDetails = await tmdb.getMovieDetails(tmdbId);
       finalImdbId = tmdbDetails.imdb_id || undefined;
       finalTmdbId = tmdbDetails.id;
     }
@@ -41,7 +43,7 @@ export const getMovieTool = defineTool({
       const firstResult = searchResult.results[0];
       if (firstResult) {
         finalTmdbId = firstResult.id;
-        const tmdbDetails = await tmdb.getMovieDetails(finalTmdbId);
+        tmdbDetails = await tmdb.getMovieDetails(finalTmdbId);
         finalImdbId = tmdbDetails.imdb_id || undefined;
       }
     }
@@ -67,16 +69,15 @@ export const getMovieTool = defineTool({
       );
     }
 
-    let tmdbDetails;
     let tmdbCredits;
 
     if (finalTmdbId) {
       [tmdbDetails, tmdbCredits] = await Promise.all([
-        tmdb.getMovieDetails(finalTmdbId),
+        tmdbDetails ?? tmdb.getMovieDetails(finalTmdbId),
         includeCredits ? tmdb.getMovieCredits(finalTmdbId) : null,
       ]);
     } else if (finalImdbId) {
-      tmdbDetails = await tmdb.getMovieByImdbId(finalImdbId);
+      tmdbDetails = (await tmdb.getMovieByImdbId(finalImdbId)) ?? undefined;
       if (tmdbDetails && includeCredits) {
         tmdbCredits = await tmdb.getMovieCredits(tmdbDetails.id);
       }

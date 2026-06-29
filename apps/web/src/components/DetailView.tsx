@@ -1,4 +1,5 @@
-import { Play } from "lucide-react";
+import { NA } from "@showtime/core";
+import { ExternalLink, Play } from "lucide-react";
 import type { EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
@@ -35,7 +36,7 @@ export const DetailView = ({
     detail.mediaType === "tv" && detail.seasons
       ? `${detail.seasons} season${detail.seasons === 1 ? "" : "s"}`
       : null,
-  ].filter(Boolean);
+  ].filter((fact) => Boolean(fact) && fact !== NA);
 
   return (
     <div>
@@ -133,17 +134,30 @@ export const DetailView = ({
               <p className="mt-3 text-sm text-amber-200/80">🏆 {detail.awards}</p>
             ) : null}
 
-            {detail.trailerUrl ? (
-              <a
-                href={detail.trailerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-semibold text-zinc-950 no-underline transition hover:bg-amber-300"
-              >
-                <Play className="h-4 w-4 fill-zinc-950" />
-                Watch Trailer
-              </a>
-            ) : null}
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              {detail.trailerUrl ? (
+                <a
+                  href={detail.trailerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-semibold text-zinc-950 no-underline transition hover:bg-amber-300"
+                >
+                  <Play className="h-4 w-4 fill-zinc-950" />
+                  Watch Trailer
+                </a>
+              ) : null}
+              {detail.imdbId ? (
+                <a
+                  href={`https://www.imdb.com/title/${detail.imdbId}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-100 no-underline transition hover:bg-white/10"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  View on IMDb
+                </a>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

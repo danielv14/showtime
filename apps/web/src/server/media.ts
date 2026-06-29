@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
+  buildTmdbImageUrl as img,
   extractYear,
+  formatWatchProviders,
+  NA,
+  OmdbApiError,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -17,14 +21,9 @@ import {
 import { getOmdb, getTmdb } from "./clients";
 import { cached, TTL } from "./cache";
 
-const IMAGE_BASE = "https://image.tmdb.org/t/p";
 const POSTER_SIZE = "w342";
 const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
-
-/** Build a public TMDB image URL. The image CDN is public; no secret involved. */
-const img = (path: string | null | undefined, size: string): string | null =>
-  path ? `${IMAGE_BASE}/${size}${path}` : null;
 
 // ----- UI-facing shapes -------------------------------------------------------
 
@@ -103,11 +102,11 @@ export interface MediaDetail {
   ratings: ExternalRating[];
   awards: string | null;
   similar: MediaItem[];
+  imdbId?: string;
   // TV-only extras
   seasons?: number;
   episodes?: number;
   networks?: string[];
-  imdbId?: string;
 }
 
 /** One episode in the ratings heatmap. `rating` is null when IMDb has none. */
@@ -154,16 +153,21 @@ const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
   overview: t.overview ?? "",
 });
 
-const fromTrending = (r: TmdbTrendingResult): MediaItem => ({
-  id: r.id,
-  mediaType: r.media_type,
-  title: r.title ?? r.name ?? "Untitled",
-  year: extractYear(r.release_date ?? r.first_air_date),
-  rating: r.vote_average,
-  posterUrl: img(r.poster_path, POSTER_SIZE),
-  backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-  overview: r.overview ?? "",
-});
+// Trending "all" also returns people; filter them out so they are not
+// rendered or routed as movies or TV.
+const fromTrending = (r: TmdbTrendingResult): MediaItem | null => {
+  if (r.media_type !== "movie" && r.media_type !== "tv") return null;
+  return {
+    id: r.id,
+    mediaType: r.media_type,
+    title: r.title ?? r.name ?? "Untitled",
+    year: extractYear(r.release_date ?? r.first_air_date),
+    rating: r.vote_average,
+    posterUrl: img(r.poster_path, POSTER_SIZE),
+    backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
+    overview: r.overview ?? "",
+  };
+};
 
 const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
   if (r.media_type === "person") {
@@ -174,7 +178,7 @@ const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
       department: r.known_for_department ?? "Acting",
       profileUrl: img(r.profile_path, PROFILE_SIZE),
       knownFor: (r.known_for ?? [])
-        .map((k) => k.title)
+        .map((k) => k.title ?? k.name)
         .filter((t): t is string => Boolean(t))
         .slice(0, 3),
     };
@@ -271,13 +275,8 @@ const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch | null
   if (!region) return null;
   const data = results[region];
   if (!data) return null;
-  const toProvider = (
-    list: { provider_name: string; logo_path: string }[] | undefined,
-  ): WatchProvider[] =>
-    (list ?? []).map((p) => ({
-      name: p.provider_name,
-      logoUrl: img(p.logo_path, "w92"),
-    }));
+  const toProvider = (list: TmdbWatchProviders["results"][string]["flatrate"]): WatchProvider[] =>
+    formatWatchProviders(list, img);
   return {
     region,
     link: data.link ?? null,
@@ -292,7 +291,7 @@ const mapOmdbRatings = (
 ): { ratings: ExternalRating[]; awards: string | null } => {
   if (!omdb) return { ratings: [], awards: null };
   const ratings: ExternalRating[] = [];
-  if (omdb.imdbRating && omdb.imdbRating !== "N/A") {
+  if (omdb.imdbRating && omdb.imdbRating !== NA) {
     ratings.push({ source: "IMDb", value: `${omdb.imdbRating}/10` });
   }
   for (const r of omdb.Ratings ?? []) {
@@ -300,7 +299,7 @@ const mapOmdbRatings = (
       ratings.push({ source: "Rotten Tomatoes", value: r.Value });
     }
   }
-  const awards = omdb.Awards && omdb.Awards !== "N/A" ? omdb.Awards : null;
+  const awards = omdb.Awards && omdb.Awards !== NA ? omdb.Awards : null;
   return { ratings, awards };
 };
 
@@ -314,7 +313,9 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
       tmdb.getUpcomingMovies(),
     ]);
     return {
-      trending: trending.results.map(fromTrending),
+      trending: trending.results
+        .map(fromTrending)
+        .filter((item): item is MediaItem => item !== null),
       upcoming: upcoming.results.map(fromMovie),
     };
   }),
@@ -337,9 +338,15 @@ export const searchMulti = createServerFn({ method: "GET" })
 
 export const getMovieDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(
-    async ({ data: id }): Promise<MediaDetail> =>
-      cached(`movie-detail:${id}`, TTL.day, async () => {
+  .handler(async ({ data: id }): Promise<MediaDetail> => {
+    // Set when an OMDB call we expected to succeed failed, so the partial
+    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
+    // for a full day. See `cached`'s `isDegraded` option.
+    let omdbFailed = false;
+    return cached(
+      `movie-detail:${id}`,
+      TTL.day,
+      async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations] = await Promise.all([
@@ -350,9 +357,13 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           tmdb.getMovieRecommendations(id).catch(() => null),
         ]);
         const omdbData = details.imdb_id
-          ? ((await omdb
-              .getById({ imdbId: details.imdb_id })
-              .catch(() => null)) as OmdbMovieDetails | null)
+          ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
+              // Only a transient failure (network/timeout/5xx) should shorten the
+              // cache. A definitive OMDB "not found" (OmdbApiError) is permanent,
+              // so caching it for the full day is correct.
+              if (!(error instanceof OmdbApiError)) omdbFailed = true;
+              return null;
+            })) as OmdbMovieDetails | null)
           : null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         // Recommendations are usually higher quality than /similar; fall back to
@@ -361,15 +372,32 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           ? recommendations.results
           : ((await tmdb.getSimilarMovies(id).catch(() => null))?.results ?? []);
         const similar = rankSimilar(similarSource.map(fromMovie));
-        return shapeMovie(details, credits, providers, videos, ratings, awards, similar);
-      }),
-  );
+        return shapeMovie(
+          details,
+          credits,
+          providers,
+          videos,
+          ratings,
+          awards,
+          details.imdb_id ?? undefined,
+          similar,
+        );
+      },
+      { isDegraded: () => omdbFailed },
+    );
+  });
 
 export const getTvDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(
-    async ({ data: id }): Promise<MediaDetail> =>
-      cached(`tv-detail:${id}`, TTL.day, async () => {
+  .handler(async ({ data: id }): Promise<MediaDetail> => {
+    // Set when an OMDB call we expected to succeed failed, so the partial
+    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
+    // for a full day. See `cached`'s `isDegraded` option.
+    let omdbFailed = false;
+    return cached(
+      `tv-detail:${id}`,
+      TTL.day,
+      async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations] = await Promise.all([
@@ -384,9 +412,15 @@ export const getTvDetail = createServerFn({ method: "GET" })
           .getByTitle({
             title: details.name,
             type: "series",
-            year: year !== "N/A" ? year : undefined,
+            year: year !== NA ? year : undefined,
           })
-          .catch(() => null)) as OmdbSeriesDetails | null;
+          .catch((error) => {
+            // Title+year lookups legitimately miss for series OMDB does not have,
+            // raising OmdbApiError. That is permanent, not transient, so it must
+            // not shorten the cache; only flag genuine transient failures.
+            if (!(error instanceof OmdbApiError)) omdbFailed = true;
+            return null;
+          })) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         const similarSource = recommendations?.results?.length
           ? recommendations.results
@@ -402,8 +436,10 @@ export const getTvDetail = createServerFn({ method: "GET" })
           omdbData?.imdbID,
           similar,
         );
-      }),
-  );
+      },
+      { isDegraded: () => omdbFailed },
+    );
+  });
 
 /**
  * Per-episode IMDb ratings across all seasons, for the heatmap. This is the
@@ -427,6 +463,7 @@ const shapeMovie = (
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
   awards: string | null,
+  imdbId: string | undefined,
   similar: MediaItem[],
 ): MediaDetail => ({
   id: d.id,
@@ -449,6 +486,7 @@ const shapeMovie = (
   whereToWatch: mapProviders(providers),
   ratings,
   awards,
+  imdbId,
   similar,
 });
 

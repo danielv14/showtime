@@ -19,10 +19,10 @@ export const searchPersonTool = defineTool({
       name: person.name,
       knownForDepartment: person.known_for_department,
       profileImageUrl: tmdb.getImageUrl(person.profile_path, "w185"),
-      knownFor: person.known_for.slice(0, 3).map((movie) => ({
-        title: movie.title,
-        year: extractYear(movie.release_date),
-        tmdbId: movie.id,
+      knownFor: person.known_for.slice(0, 3).map((entry) => ({
+        title: entry.title ?? entry.name,
+        year: extractYear(entry.release_date ?? entry.first_air_date),
+        tmdbId: entry.id,
       })),
     }));
 
