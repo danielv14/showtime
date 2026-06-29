@@ -326,14 +326,15 @@ export const searchMulti = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const query = data?.trim();
     if (!query) return { query: "", results: [] as SearchItem[] };
-    return cached(`search:${query.toLowerCase()}`, TTL.hour, async () => {
+    // Cache only the results, keyed on the normalized query. The echoed `query`
+    // is the caller's own (used in the search box, heading, and page title), so
+    // it must not be served from another caller's cached casing.
+    const results = await cached(`search:${query.toLowerCase()}`, TTL.hour, async () => {
       const tmdb = getTmdb();
       const response = await tmdb.multiSearch(query);
-      const results = response.results
-        .map(fromMulti)
-        .filter((item): item is SearchItem => item !== null);
-      return { query, results };
+      return response.results.map(fromMulti).filter((item): item is SearchItem => item !== null);
     });
+    return { query, results };
   });
 
 export const getMovieDetail = createServerFn({ method: "GET" })
