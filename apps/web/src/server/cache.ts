@@ -14,6 +14,21 @@ export const TTL = {
 } as const;
 
 /**
+ * Options controlling how a freshly fetched value is persisted.
+ *
+ * `isDegraded` lets a `fetchFn` flag a result that is missing data because a
+ * sub-fetch failed (e.g. OMDB was briefly down or rate-limited). A degraded
+ * result is cached under `degradedTtlSeconds` instead of the normal TTL, so a
+ * partial payload is not frozen for the full window: it expires quickly and the
+ * next visitor re-fetches once upstream recovers. The short TTL still keeps us
+ * from hammering the upstream during an outage.
+ */
+export interface CacheOptions<T> {
+  isDegraded?: (value: T) => boolean;
+  degradedTtlSeconds?: number;
+}
+
+/**
  * Read-through cache backed by the `CACHE` KV namespace. On a hit the
  * stored JSON is returned and `fetchFn` never runs; on a miss `fetchFn` runs
  * and its result is stored under `ttlSeconds`. This is what keeps us under the
@@ -27,6 +42,7 @@ export const cached = async <T>(
   key: string,
   ttlSeconds: number,
   fetchFn: () => Promise<T>,
+  options: CacheOptions<T> = {},
 ): Promise<T> => {
   const kv = env.CACHE as KVNamespace | undefined;
   const namespacedKey = `${CACHE_VERSION}:${key}`;
@@ -39,8 +55,10 @@ export const cached = async <T>(
   const value = await fetchFn();
 
   if (kv) {
+    const degraded = options.isDegraded?.(value) ?? false;
+    const effectiveTtl = degraded ? (options.degradedTtlSeconds ?? TTL.hour) : ttlSeconds;
     await kv.put(namespacedKey, JSON.stringify(value), {
-      expirationTtl: ttlSeconds,
+      expirationTtl: effectiveTtl,
     });
   }
 

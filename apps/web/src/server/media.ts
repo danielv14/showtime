@@ -4,6 +4,7 @@ import {
   extractYear,
   formatWatchProviders,
   NA,
+  OmdbApiError,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -335,9 +336,15 @@ export const searchMulti = createServerFn({ method: "GET" })
 
 export const getMovieDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(
-    async ({ data: id }): Promise<MediaDetail> =>
-      cached(`movie-detail:${id}`, TTL.day, async () => {
+  .handler(async ({ data: id }): Promise<MediaDetail> => {
+    // Set when an OMDB call we expected to succeed failed, so the partial
+    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
+    // for a full day. See `cached`'s `isDegraded` option.
+    let omdbFailed = false;
+    return cached(
+      `movie-detail:${id}`,
+      TTL.day,
+      async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations] = await Promise.all([
@@ -348,9 +355,13 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           tmdb.getMovieRecommendations(id).catch(() => null),
         ]);
         const omdbData = details.imdb_id
-          ? ((await omdb
-              .getById({ imdbId: details.imdb_id })
-              .catch(() => null)) as OmdbMovieDetails | null)
+          ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
+              // Only a transient failure (network/timeout/5xx) should shorten the
+              // cache. A definitive OMDB "not found" (OmdbApiError) is permanent,
+              // so caching it for the full day is correct.
+              if (!(error instanceof OmdbApiError)) omdbFailed = true;
+              return null;
+            })) as OmdbMovieDetails | null)
           : null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         // Recommendations are usually higher quality than /similar; fall back to
@@ -369,14 +380,22 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           details.imdb_id ?? undefined,
           similar,
         );
-      }),
-  );
+      },
+      { isDegraded: () => omdbFailed },
+    );
+  });
 
 export const getTvDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(
-    async ({ data: id }): Promise<MediaDetail> =>
-      cached(`tv-detail:${id}`, TTL.day, async () => {
+  .handler(async ({ data: id }): Promise<MediaDetail> => {
+    // Set when an OMDB call we expected to succeed failed, so the partial
+    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
+    // for a full day. See `cached`'s `isDegraded` option.
+    let omdbFailed = false;
+    return cached(
+      `tv-detail:${id}`,
+      TTL.day,
+      async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations] = await Promise.all([
@@ -393,7 +412,13 @@ export const getTvDetail = createServerFn({ method: "GET" })
             type: "series",
             year: year !== NA ? year : undefined,
           })
-          .catch(() => null)) as OmdbSeriesDetails | null;
+          .catch((error) => {
+            // Title+year lookups legitimately miss for series OMDB does not have,
+            // raising OmdbApiError. That is permanent, not transient, so it must
+            // not shorten the cache; only flag genuine transient failures.
+            if (!(error instanceof OmdbApiError)) omdbFailed = true;
+            return null;
+          })) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         const similarSource = recommendations?.results?.length
           ? recommendations.results
@@ -409,8 +434,10 @@ export const getTvDetail = createServerFn({ method: "GET" })
           omdbData?.imdbID,
           similar,
         );
-      }),
-  );
+      },
+      { isDegraded: () => omdbFailed },
+    );
+  });
 
 /**
  * Per-episode IMDb ratings across all seasons, for the heatmap. This is the
