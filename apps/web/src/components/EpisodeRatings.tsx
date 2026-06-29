@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { Await } from "@tanstack/react-router";
 import { ChevronDown, Loader2 } from "lucide-react";
-import { getEpisodeRatings } from "../server/media";
 import type { EpisodeRating, EpisodeRatingsData, SeasonRatings } from "../server/media";
 
 /** Cell footprint; the season header and episode cells share the column width. */
@@ -111,35 +111,30 @@ const Legend = () => (
   </div>
 );
 
-type LoadStatus = "idle" | "loading" | "done" | "error";
+const Loading = () => (
+  <div className="flex items-center gap-2 text-sm text-zinc-500">
+    <Loader2 className="h-4 w-4 animate-spin" />
+    Loading episode ratings…
+  </div>
+);
 
-export const EpisodeRatings = ({ imdbId }: { imdbId: string }) => {
+const Empty = () => (
+  <p className="text-sm text-zinc-500">No episode ratings available for this series.</p>
+);
+
+/**
+ * The ratings promise is streamed from the route loader, so it's keyed to the
+ * series by the route match. The panel stays collapsed until opened; by then
+ * the promise has usually resolved, so `Await` renders without a spinner.
+ */
+export const EpisodeRatings = ({ ratings }: { ratings: Promise<EpisodeRatingsData | null> }) => {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<LoadStatus>("idle");
-  const [data, setData] = useState<EpisodeRatingsData | null>(null);
-
-  const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (!next || status !== "idle") return;
-
-    setStatus("loading");
-    try {
-      const result = await getEpisodeRatings({ data: imdbId });
-      setData(result);
-      setStatus("done");
-    } catch {
-      setStatus("error");
-    }
-  };
-
-  const hasData = status === "done" && data && data.seasons.length > 0;
 
   return (
     <section>
       <button
         type="button"
-        onClick={toggle}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-3 rounded-lg text-left"
       >
@@ -156,27 +151,18 @@ export const EpisodeRatings = ({ imdbId }: { imdbId: string }) => {
 
       {open ? (
         <div className="mt-4">
-          {status === "loading" ? (
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading episode ratings…
-            </div>
-          ) : null}
-
-          {status === "error" ? (
-            <p className="text-sm text-zinc-500">Couldn&apos;t load episode ratings.</p>
-          ) : null}
-
-          {status === "done" && !hasData ? (
-            <p className="text-sm text-zinc-500">No episode ratings available for this series.</p>
-          ) : null}
-
-          {hasData ? (
-            <div className="space-y-4">
-              <Heatmap data={data} />
-              <Legend />
-            </div>
-          ) : null}
+          <Await promise={ratings} fallback={<Loading />}>
+            {(data) =>
+              data && data.seasons.length > 0 ? (
+                <div className="space-y-4">
+                  <Heatmap data={data} />
+                  <Legend />
+                </div>
+              ) : (
+                <Empty />
+              )
+            }
+          </Await>
         </div>
       ) : null}
     </section>
