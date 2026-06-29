@@ -1,4 +1,9 @@
-import ky, { HTTPError, TimeoutError, type KyInstance, type Options } from "ky";
+import {
+  createHttpClient,
+  HttpRequestError,
+  type HttpClient,
+  type HttpRequestOptions,
+} from "../helpers/http.js";
 import type {
   TmdbSearchResponse,
   TmdbMovieSearchResult,
@@ -85,39 +90,46 @@ export const buildSearchParams = (
 export const mediaPath = (type: "movie" | "tv", id: number, suffix: string): string =>
   `${type}/${id}/${suffix}`;
 
-export const createTmdbClient = (apiKey: string) => {
-  const kyClient: KyInstance = ky.create({
+/**
+ * Build the production HTTP adapter for TMDB: the shared retry/timeout policy
+ * plus TMDB's bearer auth and JSON content-type headers. Exposed so the default
+ * adapter and any caller-supplied one share one definition of "a TMDB request".
+ */
+export const createTmdbHttpClient = (apiKey: string): HttpClient =>
+  createHttpClient({
     prefixUrl: TMDB_BASE_URL,
-    timeout: 30000,
-    retry: {
-      limit: 2,
-      statusCodes: [408, 429, 500, 502, 503, 504],
-    },
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
   });
 
+export const createTmdbClient = (
+  apiKey: string,
+  httpClient: HttpClient = createTmdbHttpClient(apiKey),
+) => {
   /**
-   * Run a TMDB GET and parse the JSON body, translating ky's transport errors
-   * into a `TmdbApiError` that carries the status code and endpoint. ky throws
-   * an `HTTPError` for non-2xx responses (e.g. a 401 from a bad/expired key or
-   * a 404), which would otherwise reach consumers as an opaque error.
+   * Run a TMDB GET and parse the JSON body, translating the seam's transport
+   * errors into a `TmdbApiError` that carries the status code and endpoint. The
+   * adapter throws an `HttpRequestError` for non-2xx responses (e.g. a 401 from
+   * a bad/expired key or a 404) and timeouts, which would otherwise reach
+   * consumers as an opaque error. Error translation lives here, in the client,
+   * so a fake adapter can simulate a transport failure and still surface a
+   * `TmdbApiError`.
    */
-  const request = async <T>(endpoint: string, options?: Options): Promise<T> => {
+  const request = async <T>(endpoint: string, options?: HttpRequestOptions): Promise<T> => {
     try {
-      return await kyClient.get(endpoint, options).json<T>();
+      return await httpClient.get<T>(endpoint, options);
     } catch (error) {
-      if (error instanceof HTTPError) {
+      if (error instanceof HttpRequestError) {
+        if (error.isTimeout) {
+          throw new TmdbApiError(`TMDB request to ${endpoint} timed out`, undefined, endpoint);
+        }
         throw new TmdbApiError(
-          `TMDB request to ${endpoint} failed with status ${error.response.status}`,
-          error.response.status,
+          `TMDB request to ${endpoint} failed with status ${error.statusCode}`,
+          error.statusCode,
           endpoint,
         );
-      }
-      if (error instanceof TimeoutError) {
-        throw new TmdbApiError(`TMDB request to ${endpoint} timed out`, undefined, endpoint);
       }
       throw error;
     }
