@@ -20,8 +20,7 @@ const Footer = () => (
         >
           OMDb
         </a>{" "}
-        APIs but is not endorsed or certified by either. Streaming data by
-        JustWatch.
+        APIs but is not endorsed or certified by either. Streaming data by JustWatch.
       </p>
     </div>
   </footer>

@@ -225,17 +225,12 @@ const rankSimilar = (items: MediaItem[]): MediaItem[] => {
       const recency = Number.isFinite(year)
         ? Math.max(
             0,
-            Math.min(
-              1,
-              (year - (currentYear - RECENCY_WINDOW_YEARS)) / RECENCY_WINDOW_YEARS,
-            ),
+            Math.min(1, (year - (currentYear - RECENCY_WINDOW_YEARS)) / RECENCY_WINDOW_YEARS),
           )
         : 0;
       const rating = item.rating > 0 ? item.rating / 10 : 0;
       const score =
-        RELEVANCE_WEIGHT * relevance +
-        RECENCY_WEIGHT * recency +
-        RATING_WEIGHT * rating;
+        RELEVANCE_WEIGHT * relevance + RECENCY_WEIGHT * recency + RATING_WEIGHT * rating;
       return { item, index, score };
     })
     .sort((a, b) => b.score - a.score || a.index - b.index)

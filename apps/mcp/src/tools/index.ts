@@ -67,7 +67,7 @@ const toolDefinitions: AnyToolDefinition[] = [
 export const registerAllTools = (
   server: McpServer,
   omdbClient: OmdbClient,
-  tmdbClient: TmdbClient
+  tmdbClient: TmdbClient,
 ) => {
   const clients = { tmdb: tmdbClient, omdb: omdbClient };
   for (const definition of toolDefinitions) {

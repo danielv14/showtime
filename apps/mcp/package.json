@@ -2,8 +2,8 @@
   "name": "@showtime/mcp",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "Local MCP server for movie and TV data, backed by @showtime/core.",
+  "type": "module",
   "scripts": {
     "start": "tsx --env-file-if-exists=.env src/index.ts",
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",

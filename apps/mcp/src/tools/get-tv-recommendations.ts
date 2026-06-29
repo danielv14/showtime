@@ -10,15 +10,8 @@ export const getTvRecommendationsTool = defineTool({
     "Get TV series recommendations based on a specific show. Great for finding similar shows you might enjoy.",
   schema: {
     tmdbId: z.number().optional().describe("TMDB TV series ID"),
-    title: z
-      .string()
-      .optional()
-      .describe("TV series title to get recommendations for"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    title: z.string().optional().describe("TV series title to get recommendations for"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async ({ tmdbId, title, page }, { tmdb }) => {
     const guardError = requireAtLeastOne("getting TV recommendations", {
@@ -38,7 +31,7 @@ export const getTvRecommendationsTool = defineTool({
     const result = await tmdb.getTvRecommendations(tvId, { page });
 
     const formattedResults = result.results.map((show) =>
-      formatTmdbTvResult(show, tmdb.getImageUrl, { includeVoteCount: true })
+      formatTmdbTvResult(show, tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {

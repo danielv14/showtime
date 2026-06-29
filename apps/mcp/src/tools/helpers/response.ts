@@ -3,9 +3,7 @@ import { capTotalPages } from "@showtime/core";
 export const createSuccessResponse = (data: unknown) => ({
   // Coerce undefined to null so the text content is always a string; a handler
   // that returns nothing would otherwise yield `text: undefined`.
-  content: [
-    { type: "text" as const, text: JSON.stringify(data ?? null, null, 2) },
-  ],
+  content: [{ type: "text" as const, text: JSON.stringify(data ?? null, null, 2) }],
 });
 
 export const createErrorResponse = (context: string, error: unknown) => ({
@@ -21,7 +19,7 @@ export const createErrorResponse = (context: string, error: unknown) => ({
 /** Create a success response with standard pagination fields */
 export const createPaginatedResponse = (
   apiResponse: { total_results: number; page: number; total_pages: number },
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ) =>
   createSuccessResponse({
     ...data,

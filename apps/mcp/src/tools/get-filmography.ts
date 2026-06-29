@@ -10,9 +10,7 @@ export const getFilmographyTool = defineTool({
   description:
     "Get a person's complete filmography. Use search_person first to get the TMDB person ID.",
   schema: {
-    personId: z
-      .number()
-      .describe("TMDB person ID (use search_person to find this)"),
+    personId: z.number().describe("TMDB person ID (use search_person to find this)"),
     role: z
       .enum(["director", "actor", "writer", "producer", "all"])
       .optional()
@@ -21,14 +19,12 @@ export const getFilmographyTool = defineTool({
       .enum(["date", "rating", "title"])
       .optional()
       .describe(
-        "Sort by: 'date' (newest first), 'rating' (highest first), or 'title' (alphabetical)"
+        "Sort by: 'date' (newest first), 'rating' (highest first), or 'title' (alphabetical)",
       ),
     minYear: z
       .number()
       .optional()
-      .describe(
-        "Filter to only include movies from this year or later (e.g., 2000)"
-      ),
+      .describe("Filter to only include movies from this year or later (e.g., 2000)"),
     maxYear: z
       .number()
       .optional()
@@ -42,23 +38,21 @@ export const getFilmographyTool = defineTool({
   },
   handler: async (
     { personId, role = "all", sortBy = "date", minYear, maxYear, limit = 50 },
-    { tmdb }
+    { tmdb },
   ) => {
     const [personDetails, movieCredits] = await Promise.all([
       tmdb.getPersonDetails(personId),
       tmdb.getPersonMovieCredits(personId),
     ]);
 
-    const filteredCredits: Array<
-      TmdbMovieCredit & { creditType: "cast" | "crew" }
-    > = [];
+    const filteredCredits: Array<TmdbMovieCredit & { creditType: "cast" | "crew" }> = [];
 
     if (role === "all" || role === "actor") {
       filteredCredits.push(
         ...movieCredits.cast.map((credit) => ({
           ...credit,
           creditType: "cast" as const,
-        }))
+        })),
       );
     }
 
@@ -66,7 +60,7 @@ export const getFilmographyTool = defineTool({
       filteredCredits.push(
         ...movieCredits.crew
           .filter((credit) => credit.job === "Director")
-          .map((credit) => ({ ...credit, creditType: "crew" as const }))
+          .map((credit) => ({ ...credit, creditType: "crew" as const })),
       );
     }
 
@@ -78,20 +72,17 @@ export const getFilmographyTool = defineTool({
               credit.job === "Writer" ||
               credit.job === "Screenplay" ||
               credit.job === "Story" ||
-              credit.department === "Writing"
+              credit.department === "Writing",
           )
-          .map((credit) => ({ ...credit, creditType: "crew" as const }))
+          .map((credit) => ({ ...credit, creditType: "crew" as const })),
       );
     }
 
     if (role === "all" || role === "producer") {
       filteredCredits.push(
         ...movieCredits.crew
-          .filter(
-            (credit) =>
-              credit.job === "Producer" || credit.job === "Executive Producer"
-          )
-          .map((credit) => ({ ...credit, creditType: "crew" as const }))
+          .filter((credit) => credit.job === "Producer" || credit.job === "Executive Producer")
+          .map((credit) => ({ ...credit, creditType: "crew" as const })),
       );
     }
 

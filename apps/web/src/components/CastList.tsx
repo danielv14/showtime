@@ -29,9 +29,7 @@ export const CastList = ({ cast }: { cast: CastMember[] }) => {
                 </div>
               )}
             </div>
-            <p className="truncate text-xs font-medium text-zinc-200">
-              {member.name}
-            </p>
+            <p className="truncate text-xs font-medium text-zinc-200">{member.name}</p>
             <p className="truncate text-xs text-zinc-500">{member.character}</p>
           </div>
         ))}

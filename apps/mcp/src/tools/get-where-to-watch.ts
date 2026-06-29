@@ -12,17 +12,14 @@ export const getWhereToWatchTool = defineTool({
       .enum(["movie", "tv"])
       .optional()
       .describe(
-        "Whether to look up a movie or a TV series (default: 'movie'). A tmdbId must match this type."
+        "Whether to look up a movie or a TV series (default: 'movie'). A tmdbId must match this type.",
       ),
-    title: z
-      .string()
-      .optional()
-      .describe("Movie or TV series title to search for"),
+    title: z.string().optional().describe("Movie or TV series title to search for"),
     tmdbId: z
       .number()
       .optional()
       .describe(
-        "TMDB ID of the movie or TV series (more accurate than title search). Must match mediaType."
+        "TMDB ID of the movie or TV series (more accurate than title search). Must match mediaType.",
       ),
     imdbId: z
       .string()
@@ -32,13 +29,10 @@ export const getWhereToWatchTool = defineTool({
       .string()
       .optional()
       .describe(
-        "Country code for regional availability (default: 'US'). Examples: 'US', 'GB', 'CA', 'AU', 'DE', 'FR'"
+        "Country code for regional availability (default: 'US'). Examples: 'US', 'GB', 'CA', 'AU', 'DE', 'FR'",
       ),
   },
-  handler: async (
-    { mediaType = "movie", title, tmdbId, imdbId, region = "US" },
-    clients
-  ) => {
+  handler: async ({ mediaType = "movie", title, tmdbId, imdbId, region = "US" }, clients) => {
     const media = await resolveMedia(clients, {
       mediaType,
       tmdbId,
@@ -64,9 +58,7 @@ export const getWhereToWatchTool = defineTool({
       };
     }
 
-    const formatProviders = (
-      providers?: Array<{ provider_name: string; logo_path: string }>
-    ) => {
+    const formatProviders = (providers?: Array<{ provider_name: string; logo_path: string }>) => {
       if (!providers || providers.length === 0) return [];
       return providers.map((provider) => ({
         name: provider.provider_name,

@@ -10,32 +10,14 @@ export const getMovieTool = defineTool({
   description:
     "Get detailed information about a specific movie. Combines OMDB data (ratings, box office, awards) with TMDB data (cast, crew, images). Provide either imdbId, tmdbId, or title.",
   schema: {
-    imdbId: z
-      .string()
-      .optional()
-      .describe("IMDb ID of the movie (e.g., 'tt0111161')"),
+    imdbId: z.string().optional().describe("IMDb ID of the movie (e.g., 'tt0111161')"),
     tmdbId: z.number().optional().describe("TMDB ID of the movie"),
-    title: z
-      .string()
-      .optional()
-      .describe("Exact title of the movie to look up"),
-    year: z
-      .string()
-      .optional()
-      .describe("Year of release (helps disambiguate titles)"),
-    plot: z
-      .enum(["short", "full"])
-      .optional()
-      .describe("Plot length: 'short' (default) or 'full'"),
-    includeCredits: z
-      .boolean()
-      .optional()
-      .describe("Include top cast and crew (default: true)"),
+    title: z.string().optional().describe("Exact title of the movie to look up"),
+    year: z.string().optional().describe("Year of release (helps disambiguate titles)"),
+    plot: z.enum(["short", "full"]).optional().describe("Plot length: 'short' (default) or 'full'"),
+    includeCredits: z.boolean().optional().describe("Include top cast and crew (default: true)"),
   },
-  handler: async (
-    { imdbId, tmdbId, title, year, plot, includeCredits = true },
-    { tmdb, omdb }
-  ) => {
+  handler: async ({ imdbId, tmdbId, title, year, plot, includeCredits = true }, { tmdb, omdb }) => {
     const guardError = requireAtLeastOne("getting movie details", {
       imdbId,
       tmdbId,
@@ -81,7 +63,7 @@ export const getMovieTool = defineTool({
       throw new Error(
         omdbResult
           ? `The result is a ${omdbResult.Type}, not a movie. Use the appropriate tool for ${omdbResult.Type}.`
-          : "Movie not found"
+          : "Movie not found",
       );
     }
 
@@ -143,9 +125,7 @@ export const getMovieTool = defineTool({
         : omdbResult.Poster !== NA
           ? omdbResult.Poster
           : null,
-      backdropUrl: tmdbDetails
-        ? tmdb.getImageUrl(tmdbDetails.backdrop_path, "w1280")
-        : null,
+      backdropUrl: tmdbDetails ? tmdb.getImageUrl(tmdbDetails.backdrop_path, "w1280") : null,
 
       // Additional metadata (TMDB)
       tagline: tmdbDetails?.tagline,
@@ -166,16 +146,9 @@ export const getMovieTool = defineTool({
       const writers = [
         ...filterCrewByJob(tmdbCredits.crew, ["Screenplay", "Writer"]),
         ...filterCrewByDepartment(tmdbCredits.crew, "Writing"),
-      ].filter(
-        (member, index, self) =>
-          self.findIndex((m) => m.id === member.id) === index
-      );
-      const composers = filterCrewByJob(tmdbCredits.crew, [
-        "Original Music Composer",
-      ]);
-      const cinematographers = filterCrewByJob(tmdbCredits.crew, [
-        "Director of Photography",
-      ]);
+      ].filter((member, index, self) => self.findIndex((m) => m.id === member.id) === index);
+      const composers = filterCrewByJob(tmdbCredits.crew, ["Original Music Composer"]);
+      const cinematographers = filterCrewByJob(tmdbCredits.crew, ["Director of Photography"]);
 
       output.crew = {
         directors: directors.map((d) => ({ name: d.name, tmdbId: d.id })),

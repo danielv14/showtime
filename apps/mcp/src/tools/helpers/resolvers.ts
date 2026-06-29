@@ -8,16 +8,11 @@ export const atLeastOneMessage = (fields: string[]): string =>
 
 export const requireAtLeastOne = (
   context: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
 ): ReturnType<typeof createErrorResponse> | null => {
-  const hasValue = Object.values(fields).some(
-    (v) => v !== undefined && v !== null
-  );
+  const hasValue = Object.values(fields).some((v) => v !== undefined && v !== null);
   if (!hasValue) {
-    return createErrorResponse(
-      context,
-      new Error(atLeastOneMessage(Object.keys(fields)))
-    );
+    return createErrorResponse(context, new Error(atLeastOneMessage(Object.keys(fields))));
   }
   return null;
 };
@@ -29,7 +24,7 @@ export const requireAtLeastOne = (
  */
 const resolveMovieRef = async (
   tmdbClient: TmdbClient,
-  options: { tmdbId?: number; imdbId?: string; title?: string }
+  options: { tmdbId?: number; imdbId?: string; title?: string },
 ): Promise<{ id: number; title: string }> => {
   const { tmdbId, imdbId, title } = options;
 
@@ -64,7 +59,7 @@ const resolveMovieRef = async (
  */
 const resolveTvRef = async (
   tmdbClient: TmdbClient,
-  options: { tmdbId?: number; title?: string }
+  options: { tmdbId?: number; title?: string },
 ): Promise<{ id: number; name: string }> => {
   const { tmdbId, title } = options;
 
@@ -101,7 +96,7 @@ export const resolveMedia = async (
     tmdbId?: number;
     imdbId?: string;
     title?: string;
-  }
+  },
 ): Promise<ResolvedMedia> => {
   const { mediaType = "movie", tmdbId, imdbId, title } = input;
 
@@ -112,7 +107,7 @@ export const resolveMedia = async (
   if (mediaType === "tv") {
     if (imdbId && !tmdbId && !title) {
       throw new Error(
-        "IMDb ID lookup is only supported for movies. For TV series, provide a tmdbId or title."
+        "IMDb ID lookup is only supported for movies. For TV series, provide a tmdbId or title.",
       );
     }
     const tv = await resolveTvRef(clients.tmdb, { tmdbId, title });
@@ -137,7 +132,7 @@ export type ResolvedTv = { id: number; name: string };
 export const resolveMovieId = async (
   tmdbClient: TmdbClient,
   context: string,
-  options: { tmdbId?: number; imdbId?: string; title?: string }
+  options: { tmdbId?: number; imdbId?: string; title?: string },
 ): Promise<
   | { success: true; movie: ResolvedMovie }
   | { success: false; error: ReturnType<typeof createErrorResponse> }
@@ -158,7 +153,7 @@ export const resolveMovieId = async (
 export const resolveTvId = async (
   tmdbClient: TmdbClient,
   context: string,
-  options: { tmdbId?: number; title?: string }
+  options: { tmdbId?: number; title?: string },
 ): Promise<
   | { success: true; tv: ResolvedTv }
   | { success: false; error: ReturnType<typeof createErrorResponse> }

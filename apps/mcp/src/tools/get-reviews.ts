@@ -6,17 +6,10 @@ import { resolveMedia, atLeastOneMessage } from "./helpers/resolvers.js";
 export const getReviewsTool = defineTool({
   name: "get_reviews",
   title: "Get Reviews",
-  description:
-    "Get user reviews for movies or TV shows from the TMDB community.",
+  description: "Get user reviews for movies or TV shows from the TMDB community.",
   schema: {
-    movieId: z
-      .number()
-      .optional()
-      .describe("TMDB movie ID (use search_movies to find IDs)"),
-    tvId: z
-      .number()
-      .optional()
-      .describe("TMDB TV series ID (use search_series to find IDs)"),
+    movieId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
+    tvId: z.number().optional().describe("TMDB TV series ID (use search_series to find IDs)"),
     page: z.number().min(1).optional().describe("Page number for pagination"),
   },
   handler: async ({ movieId, tvId, page }, clients) => {
@@ -30,7 +23,7 @@ export const getReviewsTool = defineTool({
       clients,
       movieId !== undefined
         ? { mediaType: "movie", tmdbId: movieId }
-        : { mediaType: "tv", tmdbId: tvId }
+        : { mediaType: "tv", tmdbId: tvId },
     );
 
     const reviewsResponse =

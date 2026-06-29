@@ -2,11 +2,7 @@ import type { WhereToWatch as WhereToWatchData } from "../server/media";
 
 export const WhereToWatch = ({ data }: { data: WhereToWatchData | null }) => {
   if (!data || data.flatrate.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        Not available on streaming in your region.
-      </p>
-    );
+    return <p className="text-sm text-zinc-500">Not available on streaming in your region.</p>;
   }
   return (
     <div className="space-y-3">
@@ -30,11 +26,7 @@ export const WhereToWatch = ({ data }: { data: WhereToWatchData | null }) => {
             className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 py-1 pl-1 pr-3 text-sm text-zinc-200"
           >
             {provider.logoUrl ? (
-              <img
-                src={provider.logoUrl}
-                alt={provider.name}
-                className="h-7 w-7 rounded-md"
-              />
+              <img src={provider.logoUrl} alt={provider.name} className="h-7 w-7 rounded-md" />
             ) : null}
             {provider.name}
           </span>

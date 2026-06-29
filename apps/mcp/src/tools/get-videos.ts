@@ -10,14 +10,8 @@ export const getVideosTool = defineTool({
   description:
     "Get trailers, teasers, clips, and behind-the-scenes videos for movies and TV shows. Returns YouTube/Vimeo links.",
   schema: {
-    movieId: z
-      .number()
-      .optional()
-      .describe("TMDB movie ID (use search_movies to find IDs)"),
-    tvId: z
-      .number()
-      .optional()
-      .describe("TMDB TV series ID (use search_series to find IDs)"),
+    movieId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
+    tvId: z.number().optional().describe("TMDB TV series ID (use search_series to find IDs)"),
     type: z
       .enum(["Trailer", "Teaser", "Clip", "Behind the Scenes", "Featurette", "all"])
       .optional()
@@ -57,9 +51,7 @@ export const getVideosTool = defineTool({
     // Sort: official first, then by publish date (newest first)
     videos.sort((a, b) => {
       if (a.official !== b.official) return a.official ? -1 : 1;
-      return (
-        new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
-      );
+      return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
     });
 
     const formattedVideos = videos.map(formatVideo);

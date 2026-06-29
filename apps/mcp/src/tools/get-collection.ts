@@ -38,9 +38,7 @@ export const getCollectionTool = defineTool({
 
       const movieDetails = await tmdb.getMovieDetails(resolved.movie.id);
       if (!movieDetails.belongs_to_collection) {
-        throw new Error(
-          `"${movieDetails.title}" is not part of a collection/franchise`
-        );
+        throw new Error(`"${movieDetails.title}" is not part of a collection/franchise`);
       }
 
       finalCollectionId = movieDetails.belongs_to_collection.id;

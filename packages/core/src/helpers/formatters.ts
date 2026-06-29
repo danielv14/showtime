@@ -25,7 +25,7 @@ export const formatOmdbEpisode = (episode: OmdbSeasonEpisode) => ({
 export const formatTmdbMovieResult = (
   movie: TmdbMovieSearchResult,
   getImageUrl: (path: string | null, size?: string) => string | null,
-  options?: { includeVoteCount?: boolean }
+  options?: { includeVoteCount?: boolean },
 ) => ({
   tmdbId: movie.id,
   title: movie.title,
@@ -40,7 +40,7 @@ export const formatTmdbMovieResult = (
 export const formatTmdbTvResult = (
   show: TmdbTvSearchResult,
   getImageUrl: (path: string | null, size?: string) => string | null,
-  options?: { includeVoteCount?: boolean }
+  options?: { includeVoteCount?: boolean },
 ) => ({
   tmdbId: show.id,
   name: show.name,
@@ -88,7 +88,5 @@ export const filterCrewByJob = (crew: TmdbCrewMember[], jobs: string[]) =>
   crew.filter((member) => jobs.includes(member.job));
 
 /** Filter crew members by department */
-export const filterCrewByDepartment = (
-  crew: TmdbCrewMember[],
-  department: string
-) => crew.filter((member) => member.department === department);
+export const filterCrewByDepartment = (crew: TmdbCrewMember[], department: string) =>
+  crew.filter((member) => member.department === department);

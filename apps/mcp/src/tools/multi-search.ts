@@ -6,7 +6,7 @@ import { NA } from "@showtime/core";
 
 const formatMultiSearchResult = (
   result: TmdbMultiSearchResult,
-  getImageUrl: (path: string | null, size?: string) => string | null
+  getImageUrl: (path: string | null, size?: string) => string | null,
 ) => {
   const base = {
     tmdbId: result.id,
@@ -43,7 +43,10 @@ const formatMultiSearchResult = (
     name: result.name,
     knownFor: result.known_for_department,
     profileImageUrl: getImageUrl(result.profile_path ?? null, "w185"),
-    knownForTitles: result.known_for?.slice(0, 3).map((m) => m.title).filter(Boolean),
+    knownForTitles: result.known_for
+      ?.slice(0, 3)
+      .map((m) => m.title)
+      .filter(Boolean),
   };
 };
 
@@ -53,20 +56,14 @@ export const multiSearchTool = defineTool({
   description:
     "Search for movies, TV shows, and people in a single request. Great for general queries when you don't know the exact type of content.",
   schema: {
-    query: z
-      .string()
-      .describe("Search query (movie title, TV show name, or person name)"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    query: z.string().describe("Search query (movie title, TV show name, or person name)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async ({ query, page }, { tmdb }) => {
     const result = await tmdb.multiSearch(query, { page });
 
     const formattedResults = result.results.map((r) =>
-      formatMultiSearchResult(r, tmdb.getImageUrl)
+      formatMultiSearchResult(r, tmdb.getImageUrl),
     );
 
     // Group results by type for easier consumption
