@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   buildTmdbImageUrl as img,
   extractYear,
+  formatWatchProviders,
   NA,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
@@ -273,13 +274,8 @@ const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch | null
   if (!region) return null;
   const data = results[region];
   if (!data) return null;
-  const toProvider = (
-    list: { provider_name: string; logo_path: string }[] | undefined,
-  ): WatchProvider[] =>
-    (list ?? []).map((p) => ({
-      name: p.provider_name,
-      logoUrl: img(p.logo_path, "w92"),
-    }));
+  const toProvider = (list: TmdbWatchProviders["results"][string]["flatrate"]): WatchProvider[] =>
+    formatWatchProviders(list, img);
   return {
     region,
     link: data.link ?? null,
