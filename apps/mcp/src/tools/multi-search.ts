@@ -38,7 +38,7 @@ const formatMultiSearchResult = (
     profileImageUrl: getImageUrl(result.profile_path ?? null, "w185"),
     knownForTitles: result.known_for
       ?.slice(0, 3)
-      .map((m) => m.title)
+      .map((m) => m.title ?? m.name)
       .filter(Boolean),
   };
 };
