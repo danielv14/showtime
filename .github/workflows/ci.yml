@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # worker-configuration.d.ts is generated and gitignored; the typecheck
+      # needs it for the cloudflare:workers module and KVNamespace types.
+      - name: Generate Cloudflare Worker types
+        run: pnpm --filter web exec wrangler types
+
       - name: Lint, format, and typecheck
         run: pnpm check
 
