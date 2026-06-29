@@ -1,3 +1,15 @@
+# Showtime
+
+A monorepo for browsing movie and TV data from TMDB and OMDB. Three deployables share one data layer:
+
+- `packages/core` (`@showtime/core`) — TMDB + OMDB API clients, types, and formatters. The single source of upstream data access.
+- `apps/mcp` (`@showtime/mcp`) — local stdio MCP server that exposes the data as tools.
+- `apps/web` (`web`) — TanStack Start site deployed to Cloudflare Workers.
+
+`apps/mcp` and `apps/web` both depend on `@showtime/core` via `workspace:*` and never call TMDB or OMDB directly. Each workspace has its own `CLAUDE.md` with the details.
+
+## Toolchain
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web
@@ -14,3 +26,17 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Common commands
+
+- `vp install` — install dependencies after pulling.
+- `vp run ready` — `vp check` + tests + build across every workspace (the root `ready` script). Run before considering a change done.
+- `vp run dev` — start the web dev server (proxies to `web#dev`).
+- `vp check` — format, lint, and typecheck.
+- `vp run -r test` — run tests in every workspace; `vp run -r build` builds every workspace.
+
+## Conventions
+
+- pnpm workspaces (`apps/*`, `packages/*`, `tools/*`). Shared dependency versions live in the `catalog:` in `pnpm-workspace.yaml`, referenced as `"catalog:"` in each `package.json`.
+- TypeScript ESM throughout. Relative imports inside a package use `.js` extensions even for `.ts` files.
+- Prefer `const fn = () => {}` arrow functions and named exports over default exports and `function` declarations.
