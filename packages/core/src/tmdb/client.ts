@@ -160,6 +160,10 @@ export const createTmdbClient = (apiKey: string) => {
     return kyClient.get(`movie/${movieId}/credits`).json<TmdbCredits>();
   };
 
+  const getTvCredits = async (tvId: number): Promise<TmdbCredits> => {
+    return kyClient.get(mediaPath("tv", tvId, "credits")).json<TmdbCredits>();
+  };
+
   const getWatchProviders = async (
     movieId: number
   ): Promise<TmdbWatchProviders> => {
@@ -398,6 +402,7 @@ export const createTmdbClient = (apiKey: string) => {
     getMovieDetails,
     getMovieByImdbId,
     getMovieCredits,
+    getTvCredits,
     getWatchProviders,
     getTvWatchProviders,
     discoverMovies,
