@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
 import { extractYear, truncateText } from "@showtime/core";
-import { requireAtLeastOne, resolveMovieId } from "./helpers/resolvers.js";
+import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
 
 export const getCollectionTool = defineTool({
   name: "get_collection",
@@ -19,7 +19,7 @@ export const getCollectionTool = defineTool({
       .optional()
       .describe("Movie title - will find the collection this movie belongs to"),
   },
-  handler: async ({ collectionId, movieTmdbId, movieTitle }, { tmdb }) => {
+  handler: async ({ collectionId, movieTmdbId, movieTitle }, clients) => {
     const guardError = requireAtLeastOne("getting collection", {
       collectionId,
       movieTmdbId,
@@ -30,13 +30,13 @@ export const getCollectionTool = defineTool({
     let finalCollectionId: number | undefined = collectionId;
 
     if (!finalCollectionId) {
-      const resolved = await resolveMovieId(tmdb, "getting collection", {
+      const media = await resolveMedia(clients, {
+        mediaType: "movie",
         tmdbId: movieTmdbId,
         title: movieTitle,
       });
-      if (!resolved.success) return failWith(resolved.error);
 
-      const movieDetails = await tmdb.getMovieDetails(resolved.movie.id);
+      const movieDetails = await clients.tmdb.getMovieDetails(media.id);
       if (!movieDetails.belongs_to_collection) {
         throw new Error(`"${movieDetails.title}" is not part of a collection/franchise`);
       }
@@ -44,7 +44,7 @@ export const getCollectionTool = defineTool({
       finalCollectionId = movieDetails.belongs_to_collection.id;
     }
 
-    const collection = await tmdb.getCollection(finalCollectionId);
+    const collection = await clients.tmdb.getCollection(finalCollectionId);
 
     const sortedMovies = [...collection.parts].sort((a, b) => {
       const dateA = a.release_date || "";
@@ -61,15 +61,15 @@ export const getCollectionTool = defineTool({
       overview: truncateText(movie.overview || "", 200),
       tmdbRating: movie.vote_average,
       voteCount: movie.vote_count,
-      posterUrl: tmdb.getImageUrl(movie.poster_path, "w342"),
+      posterUrl: clients.tmdb.getImageUrl(movie.poster_path, "w342"),
     }));
 
     return {
       collectionId: collection.id,
       name: collection.name,
       overview: collection.overview || "No overview available",
-      posterUrl: tmdb.getImageUrl(collection.poster_path, "w500"),
-      backdropUrl: tmdb.getImageUrl(collection.backdrop_path, "w1280"),
+      posterUrl: clients.tmdb.getImageUrl(collection.poster_path, "w500"),
+      backdropUrl: clients.tmdb.getImageUrl(collection.backdrop_path, "w1280"),
       totalMovies: collection.parts.length,
       movies: formattedMovies,
     };
