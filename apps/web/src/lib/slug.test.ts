@@ -53,4 +53,12 @@ describe("person slug round-trip", () => {
   it("returns null for a non-numeric person slug", () => {
     expect(parsePersonId("greta-gerwig")).toBeNull();
   });
+
+  it("falls back to the bare id when a credit has no name (no crash)", () => {
+    // A cast/crew entry can arrive without a name; building its link must not
+    // throw on `String.prototype.normalize`, it must degrade to the id slug.
+    expect(toPersonSlug({ id: 42, name: undefined })).toBe("42");
+    expect(toPersonSlug({ id: 42, name: null })).toBe("42");
+    expect(toMediaSlug({ id: 42, title: undefined })).toBe("42");
+  });
 });

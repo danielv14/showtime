@@ -6,9 +6,13 @@
  * and is safe to change or drop without breaking the URL.
  */
 
-/** kebab-case a title: strip diacritics, lowercase, collapse non-alphanumerics. */
-const slugify = (title: string): string =>
-  title
+/**
+ * kebab-case a title: strip diacritics, lowercase, collapse non-alphanumerics.
+ * Tolerates a missing/non-string title (e.g. a credit with no name) by treating
+ * it as empty, so callers fall back to the bare-id slug instead of throwing.
+ */
+const slugify = (title: string | null | undefined): string =>
+  (title ?? "")
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
@@ -16,7 +20,7 @@ const slugify = (title: string): string =>
     .replace(/^-+|-+$/g, "");
 
 /** Build a `title-id` slug, falling back to the bare id when the title is empty. */
-const toSlug = (id: number, title: string): string => {
+const toSlug = (id: number, title: string | null | undefined): string => {
   const base = slugify(title);
   return base ? `${base}-${id}` : String(id);
 };
@@ -37,14 +41,14 @@ export const parseTrailingId = (slug: string): number | null => {
 };
 
 /** Build the URL segment for a movie or TV item: `the-matrix-603`. */
-export const toMediaSlug = ({ id, title }: { id: number; title: string }): string =>
+export const toMediaSlug = ({ id, title }: { id: number; title?: string | null }): string =>
   toSlug(id, title);
 
 /** Extract the TMDB id from a movie or TV slug. */
 export const parseMediaId = (slug: string): number | null => parseTrailingId(slug);
 
 /** Build the URL segment for a person: `greta-gerwig-45400`. */
-export const toPersonSlug = ({ id, name }: { id: number; name: string }): string =>
+export const toPersonSlug = ({ id, name }: { id: number; name?: string | null }): string =>
   toSlug(id, name);
 
 /** Extract the TMDB person id from a person slug. */
