@@ -1,191 +1,37 @@
-Welcome to your new TanStack Start app!
+# web
 
-# Getting Started
+The Showtime website: a [TanStack Start](https://tanstack.com/start) app (React 19, Tailwind v4) deployed to Cloudflare Workers. It renders movie and TV browsing and detail pages from data provided by [`@showtime/core`](../../packages/core/README.md).
 
-To run this application:
-
-```bash
-pnpm install
-pnpm dev
-```
-
-# Building For Production
-
-To build this application for production:
+## Running
 
 ```bash
-pnpm build
+vp dev                  # dev server on http://localhost:3000
+vp build                # build for Cloudflare Workers
+vp preview              # preview the production build
+vp test                 # tests (Vitest + Testing Library, jsdom)
+vp run generate-routes  # regenerate the route tree (tsr generate)
 ```
 
-## Testing
+## Secrets
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+`TMDB_API_KEY` and `OMDB_API_KEY` are required at runtime. Locally they come from `.dev.vars`; in production set them with `wrangler secret put`. Both surface via `process.env` thanks to the `nodejs_compat` flag in `wrangler.jsonc`.
 
-```bash
-pnpm test
-```
+## Layout
 
-## Styling
-
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `pnpm add @tailwindcss/vite tailwindcss --dev`
+- `src/routes/`: file-based routes (TanStack Router). `__root.tsx` is the shell; `index.tsx`, `search.tsx`, `movie.$slug.tsx`, `tv.$slug.tsx` are pages. `routeTree.gen.ts` is generated, do not edit it by hand.
+- `src/server/`: server-only code.
+  - `clients.ts`: `getTmdb()` / `getOmdb()`, which read secrets via `requireEnv` and build the core clients. Secrets never reach the client bundle.
+  - `media.ts`: `createServerFn` functions that call the core clients and map upstream responses into the UI shapes (`MediaItem`, `MediaDetail`, ...) that components consume.
+- `src/components/`: presentational React components (`MediaCard`, `MediaRow`, `DetailView`, `WhereToWatch`, ...).
+- `src/lib/`: `seo.ts` (page meta) and `slug.ts` (detail-page slug helpers).
+- `src/router.tsx`, `src/styles.css`: router setup and the Tailwind entrypoint.
 
 ## Routing
 
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+Detail pages use human-readable slugs with the TMDB id as the trailing segment, e.g. `/movie/the-matrix-603` and `/tv/breaking-bad-1396`. `src/lib/slug.ts` builds the slug (`toMediaSlug`) and parses the id back out (`parseMediaId`); the id is always the last `-<number>`, so bare-id URLs like `/movie/603` still resolve. The loader canonicalizes: visiting a stale or wrong slug redirects to the correct one.
 
-### Adding A Route
+Add a route by adding a file under `src/routes/`, then run `vp run generate-routes` if the route tree needs regenerating.
 
-To add a new route to your application just add a new file in the `./src/routes` directory.
+## Data flow
 
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "My App" },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-});
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from "@tanstack/react-start";
-
-const getServerTime = createServerFn({
-  method: "GET",
-}).handler(async () => {
-  return new Date().toISOString();
-});
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState("");
-
-  useEffect(() => {
-    getServerTime().then(setTime);
-  }, []);
-
-  return <div>Server time: {time}</div>;
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from "@tanstack/react-router";
-import { json } from "@tanstack/react-start";
-
-export const Route = createFileRoute("/api/hello")({
-  server: {
-    handlers: {
-      GET: () => json({ message: "Hello, World!" }),
-    },
-  },
-});
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from "@tanstack/react-router";
-
-export const Route = createFileRoute("/people")({
-  loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
-    return response.json();
-  },
-  component: PeopleComponent,
-});
-
-function PeopleComponent() {
-  const data = Route.useLoaderData();
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  );
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+Route loader or component to a `createServerFn` in `src/server/media.ts` to a core client, mapped into a UI shape. Components receive already-shaped data; raw `Tmdb*` / `Omdb*` types stay behind the server layer, and nothing in the client reads API keys or calls the upstream APIs directly. Imports use the `#/*` alias for `./src/*`.
