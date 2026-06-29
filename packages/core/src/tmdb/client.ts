@@ -26,6 +26,20 @@ import type {
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 
+/**
+ * Build a public TMDB image URL from an image path and size token. Pure: the
+ * image CDN is public, so no API key or client is involved. Returns null for a
+ * missing path. `TmdbClient.getImageUrl` delegates here so there is a single
+ * implementation that consumers can also import directly.
+ */
+export const buildTmdbImageUrl = (
+  path: string | null | undefined,
+  size: string = "w500",
+): string | null => {
+  if (!path) return null;
+  return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
+};
+
 export class TmdbApiError extends Error {
   constructor(
     message: string,
@@ -84,10 +98,8 @@ export const createTmdbClient = (apiKey: string) => {
     },
   });
 
-  const getImageUrl = (path: string | null, size: string = "w500"): string | null => {
-    if (!path) return null;
-    return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
-  };
+  const getImageUrl = (path: string | null, size: string = "w500"): string | null =>
+    buildTmdbImageUrl(path, size);
 
   const searchMovies = async (
     query: string,
