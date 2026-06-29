@@ -10,7 +10,7 @@ const Header = () => (
         className="flex shrink-0 items-center gap-2 text-zinc-100 no-underline transition hover:text-white"
       >
         <Clapperboard className="h-6 w-6 text-amber-400" />
-        <span className="text-lg font-bold tracking-tight">Showtime</span>
+        <span className="font-display text-lg font-bold tracking-tight">Showtime</span>
       </Link>
       <div className="ml-auto w-full max-w-sm">
         <SearchBar />
