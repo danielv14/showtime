@@ -39,7 +39,7 @@ export interface TmdbPersonSearchResult {
   name: string;
   known_for_department: string;
   profile_path: string | null;
-  known_for: TmdbMovieSearchResult[];
+  known_for: TmdbKnownForItem[];
 }
 
 export interface TmdbPersonDetails {
