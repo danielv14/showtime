@@ -6,16 +6,19 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
 
 ## Layout
 
-- `src/routes/` — file-based routes (TanStack Router). `__root.tsx` is the shell/layout; `index.tsx`, `search.tsx`, `movie.$slug.tsx`, `tv.$slug.tsx` are pages. Detail slugs are `title-id` (see `src/lib/slug.ts`); the trailing id is what TMDB is queried by. `routeTree.gen.ts` is generated — do not edit by hand.
+- `src/routes/` — file-based routes (TanStack Router). `__root.tsx` is the shell/layout; `index.tsx` (home), `search.tsx`, `movies.tsx` + `shows.tsx` (browse/discover surfaces), `movie.$slug.tsx`, `tv.$slug.tsx`, and `person.$slug.tsx` (director & actor pages) are pages. Detail slugs are `title-id` (see `src/lib/slug.ts`); the trailing id is what TMDB is queried by. `routeTree.gen.ts` is generated — do not edit by hand.
 - `src/server/` — server-only code.
   - `clients.ts` — `getTmdb()` / `getOmdb()`, which read secrets via `requireEnv` and build the core clients. Server-only; secrets are never bundled into the client.
-  - `media.ts` — `createServerFn` server functions that call the core clients and map upstream responses into the UI-facing shapes (`MediaItem`, `PersonItem`, etc.) that components consume.
-- `src/components/` — presentational React components (`MediaCard`, `MediaRow`, `DetailView`, `WhereToWatch`, ...).
-- `src/router.tsx`, `src/styles.css` — router setup and the Tailwind entrypoint.
+  - `media.ts` — the `createServerFn` server functions the routes call. Thin orchestration: each fetches via the core clients, wraps the work in `cached(...)`, and delegates all upstream→UI mapping to `shaper.ts`. Re-exports the UI shapes so components import them from here.
+  - `shaper.ts` — pure shaping module. Maps core's `Tmdb*`/`Omdb*` responses into the UI-facing shapes (`MediaItem`, `PersonItem`, `MediaDetail`, `PersonDetail`, etc.) that components consume. Never fetches, caches, or reads secrets, so it stays unit-testable without a network or KV.
+  - `cache.ts` — `cached()`, a read-through cache over the `CACHE` KV namespace, plus `TTL` constants. Keeps the app under OMDB's daily rate limit; a degraded payload (a failed sub-fetch) gets a short TTL so partial data is not frozen for the full window.
+  - `browse.ts` — pure browse-filter module: parses/normalises URL search params into a canonical `BrowseFilters` object and maps it onto TMDB discover options. The single source of truth for what a browse URL means.
+- `src/components/` — presentational React components (`MediaCard`, `MediaRow`, `MediaGrid`, `DetailView`, `PersonView`, `BrowseView`, `Pagination`, `WhereToWatch`, `ErrorView`, ...).
+- `src/router.tsx`, `src/styles.css` — router setup and the Tailwind entrypoint. The router wires app-wide boundaries via `defaultErrorComponent: ErrorView` and `defaultNotFoundComponent: NotFound`, so a throwing loader is caught at the failing route. Fonts (Inter for body, Space Grotesk for headings) load from Google Fonts in `__root.tsx` and bind to `--font-sans` / `--font-display` in `styles.css`.
 
 ## Conventions
 
-- Data flow: route `loader` / component → `createServerFn` in `src/server/media.ts` → core client → mapped to a UI shape. Components receive already-shaped data; keep raw `Tmdb*`/`Omdb*` types behind the server layer.
+- Data flow: route `loader` / component → `createServerFn` in `src/server/media.ts` → `cached(...)` over the `CACHE` KV → core client → `shaper.ts` maps the response into a UI shape. Components receive already-shaped data; keep raw `Tmdb*`/`Omdb*` types behind the server layer. `media.ts` orchestrates and caches; it holds no mapping logic itself.
 - All TMDB/OMDB access goes through `@showtime/core`. Components and routes never call the APIs or read API keys directly.
 - Imports use the `#/*` alias for `./src/*`.
 - TanStack Router file-based routing: add a route by adding a file under `src/routes/`. Run `vp run generate-routes` (`tsr generate`) if the route tree needs regenerating.

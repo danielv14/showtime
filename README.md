@@ -59,6 +59,10 @@ Per-workspace scripts run with `vp run <script>` from inside the workspace (or `
 - `apps/mcp`: `vp run start` (run once), `vp run dev` (watch), `vp run typecheck`.
 - `apps/web`: `vp dev`, `vp build`, `vp preview`, `vp run generate-routes`.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the checks on every push and pull request to `master`. It installs with `pnpm install --frozen-lockfile`, generates the Cloudflare Worker types the web typecheck needs (`wrangler types`, since `worker-configuration.d.ts` is gitignored), then runs `pnpm check` (format, lint, typecheck) and `pnpm test`. Deployment is separate: a push to `master` also triggers a Cloudflare Workers Build that deploys `apps/web` (see [apps/web/CLAUDE.md](apps/web/CLAUDE.md)).
+
 ## MCP server
 
 `apps/mcp` is a stdio server, so it is launched by an MCP client rather than run standalone. To register it with Claude Code:
