@@ -1,8 +1,11 @@
 import {
   buildTmdbImageUrl as img,
+  crewByJob,
+  extractOmdbRatings,
   extractYear,
   formatWatchProviders,
-  NA,
+  selectProviderRegion,
+  selectTrailerUrl,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -265,31 +268,18 @@ const mapCast = (credits: TmdbCredits | null): CastMember[] =>
     profileUrl: img(c.profile_path, PROFILE_SIZE),
   }));
 
-const crewNames = (credits: TmdbCredits | null, jobs: string[]): string[] => {
-  const seen = new Set<string>();
-  return (credits?.crew ?? [])
-    .filter((c) => jobs.includes(c.job))
-    .filter((c) => (seen.has(c.name) ? false : (seen.add(c.name), true)))
-    .map((c) => c.name);
-};
+const crewNames = (credits: TmdbCredits | null, jobs: string[]): string[] =>
+  crewByJob(credits?.crew, jobs).map((member) => member.name);
 
-export const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null => {
-  const results = videos?.results ?? [];
-  const trailer =
-    results.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ??
-    results.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
-    results.find((v) => v.site === "YouTube");
-  return trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
-};
+export const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null =>
+  selectTrailerUrl(videos);
 
 const PREFERRED_REGIONS = ["SE", "US", "GB"];
 
 export const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch | null => {
-  const results = providers?.results ?? {};
-  const region = PREFERRED_REGIONS.find((r) => results[r]) ?? Object.keys(results)[0];
-  if (!region) return null;
-  const data = results[region];
-  if (!data) return null;
+  const selected = selectProviderRegion(providers?.results, PREFERRED_REGIONS);
+  if (!selected) return null;
+  const { region, data } = selected;
   const toProvider = (list: TmdbWatchProviders["results"][string]["flatrate"]): WatchProvider[] =>
     formatWatchProviders(list, img);
   return {
@@ -303,20 +293,7 @@ export const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch
 
 export const mapOmdbRatings = (
   omdb: OmdbMovieDetails | OmdbSeriesDetails | null,
-): { ratings: ExternalRating[]; awards: string | null } => {
-  if (!omdb) return { ratings: [], awards: null };
-  const ratings: ExternalRating[] = [];
-  if (omdb.imdbRating && omdb.imdbRating !== NA) {
-    ratings.push({ source: "IMDb", value: `${omdb.imdbRating}/10` });
-  }
-  for (const r of omdb.Ratings ?? []) {
-    if (r.Source === "Rotten Tomatoes") {
-      ratings.push({ source: "Rotten Tomatoes", value: r.Value });
-    }
-  }
-  const awards = omdb.Awards && omdb.Awards !== NA ? omdb.Awards : null;
-  return { ratings, awards };
-};
+): { ratings: ExternalRating[]; awards: string | null } => extractOmdbRatings(omdb);
 
 /** Build the preformatted season-count label (e.g. "1 season", "3 seasons"). */
 const seasonsLabel = (seasons: number | undefined): string | null =>
