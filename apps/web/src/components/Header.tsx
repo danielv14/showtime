@@ -12,6 +12,20 @@ const Header = () => (
         <Clapperboard className="h-6 w-6 text-amber-400" />
         <span className="font-display text-lg font-bold tracking-tight">Showtime</span>
       </Link>
+      <nav className="hidden items-center gap-4 text-sm sm:flex">
+        <Link
+          to="/movies"
+          className="text-zinc-400 no-underline transition hover:text-white [&.active]:text-white"
+        >
+          Movies
+        </Link>
+        <Link
+          to="/shows"
+          className="text-zinc-400 no-underline transition hover:text-white [&.active]:text-white"
+        >
+          TV Shows
+        </Link>
+      </nav>
       <div className="ml-auto w-full max-w-sm">
         <SearchBar />
       </div>

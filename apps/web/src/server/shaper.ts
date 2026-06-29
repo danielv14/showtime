@@ -92,6 +92,15 @@ export interface ExternalRating {
   value: string;
 }
 
+/**
+ * A genre on a detail page, carrying TMDB's id alongside the name so the tag can
+ * link into the matching browse view pre-filtered to that genre.
+ */
+export interface MediaGenre {
+  id: number;
+  name: string;
+}
+
 export interface MediaDetail {
   id: number;
   mediaType: "movie" | "tv";
@@ -100,7 +109,7 @@ export interface MediaDetail {
   year: string;
   overview: string;
   runtime: string | null;
-  genres: string[];
+  genres: MediaGenre[];
   posterUrl: string | null;
   backdropUrl: string | null;
   tmdbRating: number;
@@ -357,7 +366,7 @@ export const shapeMovie = (
   year: extractYear(d.release_date),
   overview: d.overview ?? "",
   runtime: d.runtime ? `${d.runtime} min` : null,
-  genres: d.genres.map((g) => g.name),
+  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
   posterUrl: img(d.poster_path, "w500"),
   backdropUrl: img(d.backdrop_path, "w1280"),
   tmdbRating: d.vote_average,
@@ -391,7 +400,7 @@ export const shapeTv = (
   year: extractYear(d.first_air_date),
   overview: d.overview ?? "",
   runtime: d.episode_run_time?.[0] ? `${d.episode_run_time[0]} min` : null,
-  genres: d.genres.map((g) => g.name),
+  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
   posterUrl: img(d.poster_path, "w500"),
   backdropUrl: img(d.backdrop_path, "w1280"),
   tmdbRating: d.vote_average,

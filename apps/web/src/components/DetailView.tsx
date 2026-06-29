@@ -105,12 +105,14 @@ export const DetailView = ({
             {detail.genres.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {detail.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-zinc-300"
+                  <Link
+                    key={genre.id}
+                    to={detail.mediaType === "movie" ? "/movies" : "/shows"}
+                    search={{ genre: genre.id }}
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-zinc-300 no-underline transition hover:border-white/25 hover:text-white"
                   >
-                    {genre}
-                  </span>
+                    {genre.name}
+                  </Link>
                 ))}
               </div>
             ) : null}
