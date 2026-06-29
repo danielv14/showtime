@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool, paginatedResult, failWith } from "./define-tool.js";
 import { formatTmdbTvResult } from "@showtime/core";
-import { requireAtLeastOne, resolveTvId } from "./helpers/resolvers.js";
+import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
 
 export const getTvRecommendationsTool = defineTool({
   name: "get_tv_recommendations",
@@ -13,25 +13,20 @@ export const getTvRecommendationsTool = defineTool({
     title: z.string().optional().describe("TV series title to get recommendations for"),
     page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
-  handler: async ({ tmdbId, title, page }, { tmdb }) => {
+  handler: async ({ tmdbId, title, page }, clients) => {
     const guardError = requireAtLeastOne("getting TV recommendations", {
       tmdbId,
       title,
     });
     if (guardError) return failWith(guardError);
 
-    const resolved = await resolveTvId(tmdb, "getting TV recommendations", {
-      tmdbId,
-      title,
-    });
-    if (!resolved.success) return failWith(resolved.error);
+    const media = await resolveMedia(clients, { mediaType: "tv", tmdbId, title });
+    const { id: tvId, name: sourceShowTitle } = media;
 
-    const { id: tvId, name: sourceShowTitle } = resolved.tv;
-
-    const result = await tmdb.getTvRecommendations(tvId, { page });
+    const result = await clients.tmdb.getTvRecommendations(tvId, { page });
 
     const formattedResults = result.results.map((show) =>
-      formatTmdbTvResult(show, tmdb.getImageUrl, { includeVoteCount: true }),
+      formatTmdbTvResult(show, clients.tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {
