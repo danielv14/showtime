@@ -1,5 +1,6 @@
 import { NA } from "@showtime/core";
 import type { MediaDetail, PersonDetail } from "../server/media";
+import type { BrowseFilters } from "../server/browse";
 
 const SITE = "Showtime";
 
@@ -62,6 +63,41 @@ export const personMeta = (person: PersonDetail) => {
   }
 
   return meta;
+};
+
+/**
+ * Title + Open Graph / Twitter meta for a browse view, reflecting the active
+ * filters so a filtered URL (e.g. "Action Movies — Showtime") indexes and
+ * previews sensibly. `genreName` is the resolved genre label, when one is set.
+ */
+export const browseMeta = ({
+  mediaNoun,
+  filters,
+  genreName,
+}: {
+  mediaNoun: "Movies" | "TV Shows";
+  filters: BrowseFilters;
+  genreName?: string | null;
+}) => {
+  const qualifiers = [
+    filters.minRating ? `${filters.minRating}+ rated` : null,
+    genreName ?? null,
+  ].filter(Boolean);
+  const subject = [...qualifiers, mediaNoun].join(" ");
+  const yearSuffix = filters.year ? ` from ${filters.year}` : "";
+  const title = `${subject}${yearSuffix} — ${SITE}`;
+  const description = `Browse ${subject.toLowerCase()}${yearSuffix} on ${SITE}. Filter by genre, rating, and year, and sort to find your next watch.`;
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+  ];
 };
 
 /** Title + meta for the search page, reflecting the current query. */

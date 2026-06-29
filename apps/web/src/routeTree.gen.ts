@@ -9,15 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShowsRouteImport } from './routes/shows'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as MoviesRouteImport } from './routes/movies'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TvSlugRouteImport } from './routes/tv.$slug'
 import { Route as PersonSlugRouteImport } from './routes/person.$slug'
 import { Route as MovieSlugRouteImport } from './routes/movie.$slug'
 
+const ShowsRoute = ShowsRouteImport.update({
+  id: '/shows',
+  path: '/shows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoviesRoute = MoviesRouteImport.update({
+  id: '/movies',
+  path: '/movies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,14 +55,18 @@ const MovieSlugRoute = MovieSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/movies': typeof MoviesRoute
   '/search': typeof SearchRoute
+  '/shows': typeof ShowsRoute
   '/movie/$slug': typeof MovieSlugRoute
   '/person/$slug': typeof PersonSlugRoute
   '/tv/$slug': typeof TvSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/movies': typeof MoviesRoute
   '/search': typeof SearchRoute
+  '/shows': typeof ShowsRoute
   '/movie/$slug': typeof MovieSlugRoute
   '/person/$slug': typeof PersonSlugRoute
   '/tv/$slug': typeof TvSlugRoute
@@ -58,20 +74,38 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/movies': typeof MoviesRoute
   '/search': typeof SearchRoute
+  '/shows': typeof ShowsRoute
   '/movie/$slug': typeof MovieSlugRoute
   '/person/$slug': typeof PersonSlugRoute
   '/tv/$slug': typeof TvSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/search' | '/movie/$slug' | '/person/$slug' | '/tv/$slug'
+  fullPaths:
+    | '/'
+    | '/movies'
+    | '/search'
+    | '/shows'
+    | '/movie/$slug'
+    | '/person/$slug'
+    | '/tv/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/search' | '/movie/$slug' | '/person/$slug' | '/tv/$slug'
+  to:
+    | '/'
+    | '/movies'
+    | '/search'
+    | '/shows'
+    | '/movie/$slug'
+    | '/person/$slug'
+    | '/tv/$slug'
   id:
     | '__root__'
     | '/'
+    | '/movies'
     | '/search'
+    | '/shows'
     | '/movie/$slug'
     | '/person/$slug'
     | '/tv/$slug'
@@ -79,7 +113,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MoviesRoute: typeof MoviesRoute
   SearchRoute: typeof SearchRoute
+  ShowsRoute: typeof ShowsRoute
   MovieSlugRoute: typeof MovieSlugRoute
   PersonSlugRoute: typeof PersonSlugRoute
   TvSlugRoute: typeof TvSlugRoute
@@ -87,11 +123,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/shows': {
+      id: '/shows'
+      path: '/shows'
+      fullPath: '/shows'
+      preLoaderRoute: typeof ShowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movies': {
+      id: '/movies'
+      path: '/movies'
+      fullPath: '/movies'
+      preLoaderRoute: typeof MoviesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -127,7 +177,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MoviesRoute: MoviesRoute,
   SearchRoute: SearchRoute,
+  ShowsRoute: ShowsRoute,
   MovieSlugRoute: MovieSlugRoute,
   PersonSlugRoute: PersonSlugRoute,
   TvSlugRoute: TvSlugRoute,

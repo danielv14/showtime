@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers";
  * Bump when a cached payload's shape changes so old entries are ignored rather
  * than deserialized into the wrong shape.
  */
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 
 /** TTLs in seconds, named so call sites read intent instead of magic numbers. */
 export const TTL = {

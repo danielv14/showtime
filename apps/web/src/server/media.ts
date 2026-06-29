@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
+  capTotalPages,
   extractYear,
   NA,
   OmdbApiError,
@@ -8,6 +9,13 @@ import {
 } from "@showtime/core";
 import { getOmdb, getTmdb } from "./clients";
 import { cached, TTL } from "./cache";
+import {
+  browseCacheKey,
+  toDiscoverMovieOptions,
+  toDiscoverTvOptions,
+  type BrowseFilters,
+  type GenreOption,
+} from "./browse";
 import {
   fromMovie,
   fromMulti,
@@ -36,6 +44,7 @@ export type {
   ExternalRating,
   FilmographySection,
   MediaDetail,
+  MediaGenre,
   MediaItem,
   PersonCredit,
   PersonDetail,
@@ -67,6 +76,65 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
       upcoming: upcoming.results.map(fromMovie),
     };
   }),
+);
+
+/**
+ * A page of browse results plus the pagination envelope the UI needs. `page` is
+ * the page actually served and `totalPages` is capped via core's `capTotalPages`
+ * (TMDB refuses pages beyond 500), so the pagination control can disable "next"
+ * cleanly at the ceiling.
+ */
+export interface BrowseResult {
+  items: MediaItem[];
+  page: number;
+  totalPages: number;
+}
+
+export type { BrowseFilters, BrowseSearch, BrowseSort } from "./browse";
+
+export const browseMovies = createServerFn({ method: "GET" })
+  .validator((filters: BrowseFilters) => filters)
+  .handler(
+    async ({ data: filters }): Promise<BrowseResult> =>
+      // Discover results shift over time, so the hour tier (matching the home
+      // page) fits. Keyed on the full filter combination so distinct views do
+      // not collide in the cache.
+      cached(`browse:movie:${browseCacheKey(filters)}`, TTL.hour, async () => {
+        const tmdb = getTmdb();
+        const response = await tmdb.discoverMovies(toDiscoverMovieOptions(filters));
+        return {
+          items: response.results.map(fromMovie),
+          page: response.page,
+          totalPages: capTotalPages(response.total_pages),
+        };
+      }),
+  );
+
+export const browseTv = createServerFn({ method: "GET" })
+  .validator((filters: BrowseFilters) => filters)
+  .handler(
+    async ({ data: filters }): Promise<BrowseResult> =>
+      cached(`browse:tv:${browseCacheKey(filters)}`, TTL.hour, async () => {
+        const tmdb = getTmdb();
+        const response = await tmdb.discoverTv(toDiscoverTvOptions(filters));
+        return {
+          items: response.results.map(fromTv),
+          page: response.page,
+          totalPages: capTotalPages(response.total_pages),
+        };
+      }),
+  );
+
+// Genre lists change rarely, so they carry a long TTL. They feed the genre
+// control's options so the choices match what TMDB actually has.
+export const getMovieGenres = createServerFn({ method: "GET" }).handler(
+  async (): Promise<GenreOption[]> =>
+    cached("genres:movie", TTL.week, async () => getTmdb().getMovieGenres()),
+);
+
+export const getTvGenres = createServerFn({ method: "GET" }).handler(
+  async (): Promise<GenreOption[]> =>
+    cached("genres:tv", TTL.week, async () => getTmdb().getTvGenres()),
 );
 
 export const searchMulti = createServerFn({ method: "GET" })
