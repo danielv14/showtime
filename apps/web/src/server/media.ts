@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
   extractYear,
+  NA,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -297,7 +298,7 @@ const mapOmdbRatings = (
 ): { ratings: ExternalRating[]; awards: string | null } => {
   if (!omdb) return { ratings: [], awards: null };
   const ratings: ExternalRating[] = [];
-  if (omdb.imdbRating && omdb.imdbRating !== "N/A") {
+  if (omdb.imdbRating && omdb.imdbRating !== NA) {
     ratings.push({ source: "IMDb", value: `${omdb.imdbRating}/10` });
   }
   for (const r of omdb.Ratings ?? []) {
@@ -305,7 +306,7 @@ const mapOmdbRatings = (
       ratings.push({ source: "Rotten Tomatoes", value: r.Value });
     }
   }
-  const awards = omdb.Awards && omdb.Awards !== "N/A" ? omdb.Awards : null;
+  const awards = omdb.Awards && omdb.Awards !== NA ? omdb.Awards : null;
   return { ratings, awards };
 };
 
@@ -389,7 +390,7 @@ export const getTvDetail = createServerFn({ method: "GET" })
           .getByTitle({
             title: details.name,
             type: "series",
-            year: year !== "N/A" ? year : undefined,
+            year: year !== NA ? year : undefined,
           })
           .catch(() => null)) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
