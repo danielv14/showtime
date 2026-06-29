@@ -103,11 +103,11 @@ export interface MediaDetail {
   ratings: ExternalRating[];
   awards: string | null;
   similar: MediaItem[];
+  imdbId?: string;
   // TV-only extras
   seasons?: number;
   episodes?: number;
   networks?: string[];
-  imdbId?: string;
 }
 
 /** One episode in the ratings heatmap. `rating` is null when IMDb has none. */
@@ -359,7 +359,16 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           ? recommendations.results
           : ((await tmdb.getSimilarMovies(id).catch(() => null))?.results ?? []);
         const similar = rankSimilar(similarSource.map(fromMovie));
-        return shapeMovie(details, credits, providers, videos, ratings, awards, similar);
+        return shapeMovie(
+          details,
+          credits,
+          providers,
+          videos,
+          ratings,
+          awards,
+          details.imdb_id ?? undefined,
+          similar,
+        );
       }),
   );
 
@@ -425,6 +434,7 @@ const shapeMovie = (
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
   awards: string | null,
+  imdbId: string | undefined,
   similar: MediaItem[],
 ): MediaDetail => ({
   id: d.id,
@@ -447,6 +457,7 @@ const shapeMovie = (
   whereToWatch: mapProviders(providers),
   ratings,
   awards,
+  imdbId,
   similar,
 });
 
