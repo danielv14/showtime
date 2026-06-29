@@ -30,13 +30,9 @@ export const DetailView = ({
   detail: MediaDetail;
   ratings?: Promise<EpisodeRatingsData | null> | null;
 }) => {
-  const facts = [
-    detail.year,
-    detail.runtime,
-    detail.mediaType === "tv" && detail.seasons
-      ? `${detail.seasons} season${detail.seasons === 1 ? "" : "s"}`
-      : null,
-  ].filter((fact) => Boolean(fact) && fact !== NA);
+  const facts = [detail.year, detail.runtime, detail.seasonsLabel].filter(
+    (fact) => Boolean(fact) && fact !== NA,
+  );
 
   return (
     <div>
