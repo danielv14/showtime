@@ -3,5 +3,13 @@
   "name": "showtime",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+  // Caches shaped upstream results to stay under the OMDB daily rate limit.
+  // Namespace title on the account: showtime-cache
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "1e0727f2d8d1497daaf8d5c9c241ee55",
+    },
+  ],
 }
