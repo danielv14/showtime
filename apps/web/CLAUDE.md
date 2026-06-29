@@ -46,7 +46,7 @@ Workers Builds settings (the one non-obvious part is that CI has no global `vp`)
   curl -fsSL https://vite.plus | bash && export PATH="$HOME/.vite-plus/bin:$PATH" && vp install && vp run web#build
   ```
   There is no standalone `vite` binary (the toolchain is Vite+), and `vp install` honors the `allowBuilds` approvals in the root `pnpm-workspace.yaml` (e.g. `workerd`) that a plain `pnpm install` would skip — so CI must use `vp`, not bare pnpm.
-- **Deploy command**:
+- **Deploy command** — call wrangler's binary directly. `npx` would invoke npm, which aborts with `EBADDEVENGINES` because the root `package.json` pins pnpm via `devEngines.packageManager`:
   ```
-  cd apps/web && npx wrangler deploy
+  cd apps/web && ./node_modules/.bin/wrangler deploy
   ```
