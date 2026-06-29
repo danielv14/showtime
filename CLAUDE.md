@@ -39,4 +39,3 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 
 - pnpm workspaces (`apps/*`, `packages/*`, `tools/*`). Shared dependency versions live in the `catalog:` in `pnpm-workspace.yaml`, referenced as `"catalog:"` in each `package.json`.
 - TypeScript ESM throughout. Relative imports inside a package use `.js` extensions even for `.ts` files.
-- Prefer `const fn = () => {}` arrow functions and named exports over default exports and `function` declarations.

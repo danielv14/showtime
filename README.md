@@ -73,5 +73,4 @@ claude mcp add showtime-mcp -- \
 ## Conventions
 
 - TypeScript ESM throughout. Relative imports inside a package use `.js` extensions even for `.ts` files.
-- Prefer `const fn = () => {}` arrow functions and named exports over default exports and `function` declarations.
 - All TMDB/OMDB access goes through `@showtime/core`; nothing else reads API keys or calls the upstream APIs.
