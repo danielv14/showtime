@@ -1,4 +1,4 @@
-import ky, { type KyInstance } from "ky";
+import { createHttpClient, HttpRequestError, type HttpClient } from "../helpers/http.js";
 import type {
   OmdbSearchResponse,
   OmdbErrorResponse,
@@ -64,16 +64,18 @@ export const parseTotalSeasons = (totalSeasons: string | undefined): number => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 };
 
-export const createOmdbClient = (apiKey: string) => {
-  const kyClient: KyInstance = ky.create({
-    prefixUrl: OMDB_BASE_URL,
-    timeout: 30000,
-    retry: {
-      limit: 2,
-      statusCodes: [408, 429, 500, 502, 503, 504],
-    },
-  });
+/**
+ * Build the production HTTP adapter for OMDB: the shared retry/timeout policy
+ * over OMDB's base URL. OMDB authenticates via an `apikey` query param (added
+ * per request by the client), so no auth headers are needed here.
+ */
+export const createOmdbHttpClient = (): HttpClient =>
+  createHttpClient({ prefixUrl: OMDB_BASE_URL });
 
+export const createOmdbClient = (
+  apiKey: string,
+  httpClient: HttpClient = createOmdbHttpClient(),
+) => {
   const handleResponse = <T>(response: T | OmdbErrorResponse): T => {
     if (
       "Response" in (response as object) &&
@@ -82,6 +84,27 @@ export const createOmdbClient = (apiKey: string) => {
       throw new OmdbApiError((response as OmdbErrorResponse).Error);
     }
     return response as T;
+  };
+
+  /**
+   * Issue an OMDB GET (every endpoint is the base URL with query params) and
+   * translate the seam's transport failure into an `OmdbApiError`, so the
+   * package's "failures throw OmdbApiError" convention holds for outages and
+   * timeouts as it already does for OMDB's wire-level `Response: "False"`.
+   */
+  const request = async <T>(searchParams: Record<string, string | number>): Promise<T> => {
+    try {
+      return await httpClient.get<T>("", { searchParams });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        throw new OmdbApiError(
+          error.isTimeout
+            ? "OMDB request timed out"
+            : `OMDB request failed with status ${error.statusCode}`,
+        );
+      }
+      throw error;
+    }
   };
 
   const search = async (
@@ -97,9 +120,7 @@ export const createOmdbClient = (apiKey: string) => {
     if (options.year) searchParams.y = options.year;
     if (options.page) searchParams.page = options.page;
 
-    const response = await kyClient
-      .get("", { searchParams })
-      .json<OmdbSearchResponse | OmdbErrorResponse>();
+    const response = await request<OmdbSearchResponse | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };
@@ -116,9 +137,9 @@ export const createOmdbClient = (apiKey: string) => {
       plot: options.plot || "short",
     };
 
-    const response = await kyClient
-      .get("", { searchParams })
-      .json<OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails | OmdbErrorResponse>();
+    const response = await request<
+      OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails | OmdbErrorResponse
+    >(searchParams);
 
     return handleResponse(response);
   };
@@ -135,9 +156,9 @@ export const createOmdbClient = (apiKey: string) => {
     if (options.type) searchParams.type = options.type;
     if (options.year) searchParams.y = options.year;
 
-    const response = await kyClient
-      .get("", { searchParams })
-      .json<OmdbMovieDetails | OmdbSeriesDetails | OmdbErrorResponse>();
+    const response = await request<OmdbMovieDetails | OmdbSeriesDetails | OmdbErrorResponse>(
+      searchParams,
+    );
 
     return handleResponse(response);
   };
@@ -150,9 +171,7 @@ export const createOmdbClient = (apiKey: string) => {
       Episode: options.episode,
     };
 
-    const response = await kyClient
-      .get("", { searchParams })
-      .json<OmdbEpisodeDetails | OmdbErrorResponse>();
+    const response = await request<OmdbEpisodeDetails | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };
@@ -164,9 +183,7 @@ export const createOmdbClient = (apiKey: string) => {
       Season: options.season,
     };
 
-    const response = await kyClient
-      .get("", { searchParams })
-      .json<OmdbSeasonResponse | OmdbErrorResponse>();
+    const response = await request<OmdbSeasonResponse | OmdbErrorResponse>(searchParams);
 
     return handleResponse(response);
   };

@@ -5,8 +5,11 @@ import type {
   TmdbVideo,
   TmdbCrewMember,
   TmdbWatchProvider,
+  TmdbVideosResponse,
+  TmdbWatchProviders,
+  TmdbWatchProviderRegion,
 } from "../tmdb/types.js";
-import type { OmdbSeasonEpisode } from "../omdb/types.js";
+import type { OmdbSeasonEpisode, OmdbMovieDetails, OmdbSeriesDetails } from "../omdb/types.js";
 import { NA } from "./constants.js";
 
 export const truncateText = (text: string, maxLength: number): string =>
@@ -89,10 +92,13 @@ export const formatReview = (review: TmdbReview) => ({
   url: review.url,
 });
 
+/** Build a YouTube watch URL from a video key. One source of truth for the form. */
+const youtubeWatchUrl = (key: string): string => `https://www.youtube.com/watch?v=${key}`;
+
 export const formatVideo = (video: TmdbVideo) => {
   const videoUrl =
     video.site === "YouTube"
-      ? `https://www.youtube.com/watch?v=${video.key}`
+      ? youtubeWatchUrl(video.key)
       : video.site === "Vimeo"
         ? `https://vimeo.com/${video.key}`
         : null;
@@ -117,3 +123,71 @@ export const filterCrewByJob = (crew: TmdbCrewMember[], jobs: string[]) =>
 /** Filter crew members by department */
 export const filterCrewByDepartment = (crew: TmdbCrewMember[], department: string) =>
   crew.filter((member) => member.department === department);
+
+/**
+ * Select crew members matching any of the given jobs, deduped by id and keeping
+ * the first occurrence's order. A single person credited under several matching
+ * jobs (or listed twice by the upstream) appears once. Returns the full crew
+ * objects so callers can read whichever fields they need (name, job, id, ...).
+ */
+export const crewByJob = (crew: TmdbCrewMember[] | undefined, jobs: string[]): TmdbCrewMember[] => {
+  const seen = new Set<number>();
+  return filterCrewByJob(crew ?? [], jobs).filter((member) =>
+    seen.has(member.id) ? false : (seen.add(member.id), true),
+  );
+};
+
+/**
+ * Pick the watch-provider data for the first preferred region present, then fall
+ * back to the first region the upstream lists, else null. Returns the region key
+ * alongside its data so callers can surface which region they resolved to.
+ */
+export const selectProviderRegion = (
+  results: TmdbWatchProviders["results"] | undefined,
+  preferred: string[],
+): { region: string; data: TmdbWatchProviderRegion } | null => {
+  const byRegion = results ?? {};
+  const region = preferred.find((code) => byRegion[code]) ?? Object.keys(byRegion)[0];
+  if (!region) return null;
+  const data = byRegion[region];
+  if (!data) return null;
+  return { region, data };
+};
+
+/**
+ * Pick the best watchable URL from a TMDB videos response: an official YouTube
+ * trailer first, then any YouTube trailer, then any YouTube video. Returns the
+ * YouTube watch URL, or null when there is no YouTube video.
+ */
+export const selectTrailerUrl = (videos: TmdbVideosResponse | null): string | null => {
+  const results = videos?.results ?? [];
+  const trailer =
+    results.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ??
+    results.find((v) => v.site === "YouTube" && v.type === "Trailer") ??
+    results.find((v) => v.site === "YouTube");
+  return trailer ? youtubeWatchUrl(trailer.key) : null;
+};
+
+/**
+ * Extract the external ratings and awards a UI surfaces from OMDB details:
+ * the IMDb rating as "{x}/10", the Rotten Tomatoes value from `Ratings[]`, and
+ * the awards string when present. `N/A` placeholders are skipped, and non-Rotten
+ * Tomatoes sources are ignored. An absent `omdb` yields empty ratings and no
+ * awards.
+ */
+export const extractOmdbRatings = (
+  omdb: OmdbMovieDetails | OmdbSeriesDetails | null,
+): { ratings: { source: string; value: string }[]; awards: string | null } => {
+  if (!omdb) return { ratings: [], awards: null };
+  const ratings: { source: string; value: string }[] = [];
+  if (omdb.imdbRating && omdb.imdbRating !== NA) {
+    ratings.push({ source: "IMDb", value: `${omdb.imdbRating}/10` });
+  }
+  for (const rating of omdb.Ratings ?? []) {
+    if (rating.Source === "Rotten Tomatoes") {
+      ratings.push({ source: "Rotten Tomatoes", value: rating.Value });
+    }
+  }
+  const awards = omdb.Awards && omdb.Awards !== NA ? omdb.Awards : null;
+  return { ratings, awards };
+};

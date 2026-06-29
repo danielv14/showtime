@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
-import { filterCrewByJob, filterCrewByDepartment } from "@showtime/core";
+import { crewByJob, filterCrewByJob, filterCrewByDepartment } from "@showtime/core";
 import { NA } from "@showtime/core";
 import type { TmdbMovieDetails } from "@showtime/core";
 import { requireAtLeastOne } from "./helpers/resolvers.js";
@@ -143,13 +143,13 @@ export const getMovieTool = defineTool({
         profileImageUrl: tmdb.getImageUrl(member.profile_path, "w185"),
       }));
 
-      const directors = filterCrewByJob(tmdbCredits.crew, ["Director"]);
+      const directors = crewByJob(tmdbCredits.crew, ["Director"]);
       const writers = [
         ...filterCrewByJob(tmdbCredits.crew, ["Screenplay", "Writer"]),
         ...filterCrewByDepartment(tmdbCredits.crew, "Writing"),
       ].filter((member, index, self) => self.findIndex((m) => m.id === member.id) === index);
-      const composers = filterCrewByJob(tmdbCredits.crew, ["Original Music Composer"]);
-      const cinematographers = filterCrewByJob(tmdbCredits.crew, ["Director of Photography"]);
+      const composers = crewByJob(tmdbCredits.crew, ["Original Music Composer"]);
+      const cinematographers = crewByJob(tmdbCredits.crew, ["Director of Photography"]);
 
       output.crew = {
         directors: directors.map((d) => ({ name: d.name, tmdbId: d.id })),
