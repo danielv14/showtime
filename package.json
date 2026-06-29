@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "dev": "vp run web#dev"
+    "dev": "vp run web#dev",
+    "check": "vp check",
+    "fix": "vp check --fix"
   },
   "devDependencies": {
     "vite-plus": "catalog:"
