@@ -4,6 +4,7 @@ import type {
   TmdbReview,
   TmdbVideo,
   TmdbCrewMember,
+  TmdbWatchProvider,
 } from "../tmdb/types.js";
 import type { OmdbSeasonEpisode } from "../omdb/types.js";
 import { NA } from "./constants.js";
@@ -51,6 +52,32 @@ export const formatTmdbTvResult = (
   ...(options?.includeVoteCount && { voteCount: show.vote_count }),
   posterUrl: getImageUrl(show.poster_path, "w342"),
 });
+
+/** A watch provider shaped for display: its name and a logo URL (or null). */
+export interface FormattedWatchProvider {
+  name: string;
+  logoUrl: string | null;
+}
+
+/**
+ * Shape a single TMDB watch provider into `{ name, logoUrl }`, building the
+ * logo URL via the passed `getImageUrl` callback so the CDN base and the "w92"
+ * size stay defined in one place.
+ */
+export const formatWatchProvider = (
+  provider: TmdbWatchProvider,
+  getImageUrl: (path: string | null, size?: string) => string | null,
+): FormattedWatchProvider => ({
+  name: provider.provider_name,
+  logoUrl: getImageUrl(provider.logo_path, "w92"),
+});
+
+/** Shape a list of TMDB watch providers; an absent list becomes an empty array. */
+export const formatWatchProviders = (
+  providers: TmdbWatchProvider[] | undefined,
+  getImageUrl: (path: string | null, size?: string) => string | null,
+): FormattedWatchProvider[] =>
+  (providers ?? []).map((provider) => formatWatchProvider(provider, getImageUrl));
 
 export const formatReview = (review: TmdbReview) => ({
   id: review.id,

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
   extractYear,
+  formatWatchProviders,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -23,7 +24,7 @@ const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
 
 /** Build a public TMDB image URL. The image CDN is public; no secret involved. */
-const img = (path: string | null | undefined, size: string): string | null =>
+const img = (path: string | null | undefined, size: string = POSTER_SIZE): string | null =>
   path ? `${IMAGE_BASE}/${size}${path}` : null;
 
 // ----- UI-facing shapes -------------------------------------------------------
@@ -271,13 +272,8 @@ const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch | null
   if (!region) return null;
   const data = results[region];
   if (!data) return null;
-  const toProvider = (
-    list: { provider_name: string; logo_path: string }[] | undefined,
-  ): WatchProvider[] =>
-    (list ?? []).map((p) => ({
-      name: p.provider_name,
-      logoUrl: img(p.logo_path, "w92"),
-    }));
+  const toProvider = (list: TmdbWatchProviders["results"][string]["flatrate"]): WatchProvider[] =>
+    formatWatchProviders(list, img);
   return {
     region,
     link: data.link ?? null,
