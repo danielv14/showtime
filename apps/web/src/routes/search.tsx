@@ -1,56 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { searchMulti, type MediaItem, type PersonItem } from "../server/media";
-import { MediaGrid } from "../components/MediaGrid";
-import { PersonCard } from "../components/PersonCard";
-import { SearchBar } from "../components/SearchBar";
+import { searchMedia } from "../server/media";
+import {
+  normalizeSearchFilters,
+  SEARCH_YEAR_FLOOR,
+  toSearchSearch,
+  type SearchSearch,
+} from "../server/search";
+import { SearchView } from "../components/SearchView";
 import { searchMeta } from "../lib/seo";
 
 const SearchPage = () => {
-  const { query, results } = Route.useLoaderData();
-  const media = results.filter((item): item is MediaItem => item.mediaType !== "person");
-  const people = results.filter((item): item is PersonItem => item.mediaType === "person");
-
+  const { query, results, page, totalPages, filters, yearRange } = Route.useLoaderData();
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="mb-8 max-w-xl">
-        <SearchBar initialQuery={query} autoFocus />
-      </div>
-
-      {query ? (
-        <p className="mb-6 text-sm text-zinc-500">
-          {results.length} result{results.length === 1 ? "" : "s"} for{" "}
-          <span className="text-zinc-300">“{query}”</span>
-        </p>
-      ) : (
-        <p className="text-sm text-zinc-500">Search for a movie, show, or person.</p>
-      )}
-
-      {media.length > 0 ? <MediaGrid items={media} /> : null}
-
-      {people.length > 0 ? (
-        <section className="mt-12">
-          <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">People</h2>
-          <div className="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-            {people.map((person) => (
-              <PersonCard key={person.id} person={person} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {query && results.length === 0 ? (
-        <p className="text-sm text-zinc-500">No results found.</p>
-      ) : null}
-    </main>
+    <SearchView
+      query={query}
+      results={results}
+      page={page}
+      totalPages={totalPages}
+      filters={filters}
+      yearRange={yearRange}
+    />
   );
 };
 
 export const Route = createFileRoute("/search")({
-  validateSearch: (search: Record<string, unknown>): { q: string } => ({
-    q: typeof search.q === "string" ? search.q : "",
-  }),
-  loaderDeps: ({ search: { q } }) => ({ q }),
-  loader: ({ deps: { q } }) => searchMulti({ data: q }),
-  head: ({ loaderData }) => ({ meta: searchMeta(loaderData?.query ?? "") }),
+  // Normalise then strip defaults so a plain search stays at `/search?q=...` and
+  // a hand-edited URL (bad type/year/page) resolves to a sane view rather than
+  // throwing. The loader re-normalises the same params back into full filters.
+  validateSearch: (search: Record<string, unknown>): SearchSearch =>
+    toSearchSearch(normalizeSearchFilters(search)),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ deps }) => {
+    const filters = normalizeSearchFilters(deps);
+    const result = await searchMedia({ data: filters });
+    const currentYear = new Date().getFullYear();
+    return { ...result, filters, yearRange: { min: SEARCH_YEAR_FLOOR, max: currentYear + 1 } };
+  },
+  head: ({ loaderData }) =>
+    loaderData ? { meta: searchMeta(loaderData.query, loaderData.filters.type) } : { meta: [] },
   component: SearchPage,
 });

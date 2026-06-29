@@ -12,8 +12,9 @@ import { render, screen, waitFor, type RenderResult } from "@testing-library/rea
  * Render a component that uses router primitives (`Link`, etc.) inside a minimal
  * in-memory router. The component under test renders at `/`, with stub routes
  * registered for every path the components link to (`/movies`, `/shows`,
- * `/movie/$slug`, `/tv/$slug`) so `Link`s resolve to real `<a href>`s we can
- * assert on. Async because `RouterProvider` mounts its first match in an effect.
+ * `/search`, `/movie/$slug`, `/tv/$slug`, `/person/$slug`) so `Link`s resolve to
+ * real `<a href>`s we can assert on. Async because `RouterProvider` mounts its
+ * first match in an effect.
  */
 export const renderWithRouter = async (ui: ReactNode): Promise<RenderResult> => {
   const rootRoute = createRootRoute();
@@ -28,8 +29,10 @@ export const renderWithRouter = async (ui: ReactNode): Promise<RenderResult> => 
     indexRoute,
     stub("/movies"),
     stub("/shows"),
+    stub("/search"),
     stub("/movie/$slug"),
     stub("/tv/$slug"),
+    stub("/person/$slug"),
   ]);
   const router = createRouter({
     routeTree,
