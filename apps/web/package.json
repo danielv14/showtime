@@ -10,6 +10,7 @@
     "generate-routes": "tsr generate",
     "build": "vp build",
     "preview": "vp preview",
+    "deploy": "vp build && wrangler deploy",
     "test": "vp test run"
   },
   "dependencies": {

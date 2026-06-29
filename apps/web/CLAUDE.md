@@ -6,7 +6,7 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
 
 ## Layout
 
-- `src/routes/` — file-based routes (TanStack Router). `__root.tsx` is the shell/layout; `index.tsx`, `search.tsx`, `movie.$id.tsx`, `tv.$id.tsx` are pages. `routeTree.gen.ts` is generated — do not edit by hand.
+- `src/routes/` — file-based routes (TanStack Router). `__root.tsx` is the shell/layout; `index.tsx`, `search.tsx`, `movie.$slug.tsx`, `tv.$slug.tsx` are pages. Detail slugs are `title-id` (see `src/lib/slug.ts`); the trailing id is what TMDB is queried by. `routeTree.gen.ts` is generated — do not edit by hand.
 - `src/server/` — server-only code.
   - `clients.ts` — `getTmdb()` / `getOmdb()`, which read secrets via `requireEnv` and build the core clients. Server-only; secrets are never bundled into the client.
   - `media.ts` — `createServerFn` server functions that call the core clients and map upstream responses into the UI-facing shapes (`MediaItem`, `PersonItem`, etc.) that components consume.
@@ -22,7 +22,7 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
 
 ## Secrets
 
-`TMDB_API_KEY` and `OMDB_API_KEY` are required at runtime. Locally they come from `.dev.vars`; in production from `wrangler secret put`. Both surface via `process.env` thanks to the `nodejs_compat` flag in `wrangler.jsonc`.
+`TMDB_API_KEY` and `OMDB_API_KEY` are required at runtime. Locally they come from `.dev.vars`; in production they are set in the Cloudflare dashboard (Workers → the Worker → Settings → Variables & Secrets) or via `wrangler secret put`. They are intentionally not in `wrangler.jsonc`. Both surface via `process.env` thanks to the `nodejs_compat` flag in `wrangler.jsonc`.
 
 ## Commands
 
@@ -30,3 +30,23 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
 - `vp build` — build for Cloudflare Workers.
 - `vp preview` — preview the production build.
 - `vp test` — run tests (Vitest + Testing Library, jsdom).
+- `vp run deploy` — build and deploy to Cloudflare (`vp build && wrangler deploy`).
+
+## Deployment (Cloudflare Workers)
+
+Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv14/showtime`, branch `master`): a push to `master` builds and deploys automatically. For a manual deploy use `vp run deploy`.
+
+`wrangler deploy` auto-detects the Vite build in `dist/` and deploys it (no `-c` flag needed). The `CACHE` KV binding and the `nodejs_compat` flag come from `wrangler.jsonc`; only the two API-key secrets are set out-of-band (see Secrets above).
+
+Workers Builds settings (the one non-obvious part is that CI has no global `vp`):
+
+- **Root directory**: repo root, so the pnpm workspace and catalog resolve.
+- **Build command** — bootstraps Vite+, installs, builds the web app:
+  ```
+  curl -fsSL https://vite.plus | bash && export PATH="$HOME/.vite-plus/bin:$PATH" && vp install && vp run web#build
+  ```
+  There is no standalone `vite` binary (the toolchain is Vite+), and `vp install` honors the `allowBuilds` approvals in the root `pnpm-workspace.yaml` (e.g. `workerd`) that a plain `pnpm install` would skip — so CI must use `vp`, not bare pnpm.
+- **Deploy command**:
+  ```
+  cd apps/web && npx wrangler deploy
+  ```
