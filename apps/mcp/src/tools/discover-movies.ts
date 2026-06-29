@@ -13,15 +13,8 @@ export const discoverMoviesTool = defineTool({
     genre: z
       .string()
       .optional()
-      .describe(
-        "Genre name (e.g., 'action', 'comedy', 'sci-fi', 'thriller', 'drama')"
-      ),
-    minRating: z
-      .number()
-      .min(0)
-      .max(10)
-      .optional()
-      .describe("Minimum TMDB rating (0-10)"),
+      .describe("Genre name (e.g., 'action', 'comedy', 'sci-fi', 'thriller', 'drama')"),
+    minRating: z.number().min(0).max(10).optional().describe("Minimum TMDB rating (0-10)"),
     directorId: z
       .number()
       .optional()
@@ -47,22 +40,18 @@ export const discoverMoviesTool = defineTool({
       ])
       .optional()
       .describe("Sort order (default: popularity.desc)"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async (
     { year, genre, minRating, directorId, actorId, language, sortBy, page },
-    { tmdb }
+    { tmdb },
   ) => {
     let genreId: string | undefined;
     if (genre) {
       const mappedId = getGenreId(genre, MOVIE_GENRE_MAP);
       if (!mappedId) {
         throw new Error(
-          `Unknown genre '${genre}'. Available genres: ${Object.keys(MOVIE_GENRE_MAP).join(", ")}`
+          `Unknown genre '${genre}'. Available genres: ${Object.keys(MOVIE_GENRE_MAP).join(", ")}`,
         );
       }
       genreId = mappedId.toString();
@@ -85,7 +74,7 @@ export const discoverMoviesTool = defineTool({
     });
 
     const formattedResults = result.results.map((movie) =>
-      formatTmdbMovieResult(movie, tmdb.getImageUrl, { includeVoteCount: true })
+      formatTmdbMovieResult(movie, tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {

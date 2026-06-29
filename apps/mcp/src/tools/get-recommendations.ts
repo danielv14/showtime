@@ -9,19 +9,9 @@ export const getMovieRecommendationsTool = defineTool({
   description:
     "Get movie recommendations based on a specific movie. Great for finding similar movies you might enjoy. Uses TMDB's recommendation algorithm.",
   schema: {
-    tmdbId: z
-      .number()
-      .optional()
-      .describe("TMDB movie ID (use search_movies to find IDs)"),
-    title: z
-      .string()
-      .optional()
-      .describe("Movie title to get recommendations for"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    tmdbId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
+    title: z.string().optional().describe("Movie title to get recommendations for"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async ({ tmdbId, title, page }, { tmdb }) => {
     const guardError = requireAtLeastOne("getting movie recommendations", {
@@ -30,11 +20,7 @@ export const getMovieRecommendationsTool = defineTool({
     });
     if (guardError) return failWith(guardError);
 
-    const resolved = await resolveMovieId(
-      tmdb,
-      "getting movie recommendations",
-      { tmdbId, title }
-    );
+    const resolved = await resolveMovieId(tmdb, "getting movie recommendations", { tmdbId, title });
     if (!resolved.success) return failWith(resolved.error);
 
     const { id: movieId, title: sourceMovieTitle } = resolved.movie;
@@ -42,7 +28,7 @@ export const getMovieRecommendationsTool = defineTool({
     const result = await tmdb.getMovieRecommendations(movieId, { page });
 
     const formattedResults = result.results.map((movie) =>
-      formatTmdbMovieResult(movie, tmdb.getImageUrl, { includeVoteCount: true })
+      formatTmdbMovieResult(movie, tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {

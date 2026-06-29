@@ -1,9 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  searchMulti,
-  type MediaItem,
-  type PersonItem,
-} from "../server/media";
+import { searchMulti, type MediaItem, type PersonItem } from "../server/media";
 import { MediaGrid } from "../components/MediaGrid";
 import { PersonCard } from "../components/PersonCard";
 import { SearchBar } from "../components/SearchBar";
@@ -11,12 +7,8 @@ import { searchMeta } from "../lib/seo";
 
 const SearchPage = () => {
   const { query, results } = Route.useLoaderData();
-  const media = results.filter(
-    (item): item is MediaItem => item.mediaType !== "person"
-  );
-  const people = results.filter(
-    (item): item is PersonItem => item.mediaType === "person"
-  );
+  const media = results.filter((item): item is MediaItem => item.mediaType !== "person");
+  const people = results.filter((item): item is PersonItem => item.mediaType === "person");
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -30,18 +22,14 @@ const SearchPage = () => {
           <span className="text-zinc-300">“{query}”</span>
         </p>
       ) : (
-        <p className="text-sm text-zinc-500">
-          Search for a movie, show, or person.
-        </p>
+        <p className="text-sm text-zinc-500">Search for a movie, show, or person.</p>
       )}
 
       {media.length > 0 ? <MediaGrid items={media} /> : null}
 
       {people.length > 0 ? (
         <section className="mt-12">
-          <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">
-            People
-          </h2>
+          <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">People</h2>
           <div className="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {people.map((person) => (
               <PersonCard key={person.id} person={person} />

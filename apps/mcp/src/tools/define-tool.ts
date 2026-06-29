@@ -24,15 +24,12 @@ export interface ToolDefinition<Shape extends z.ZodRawShape = z.ZodRawShape> {
   title: string;
   description: string;
   schema: Shape;
-  handler: (
-    args: z.infer<z.ZodObject<Shape>>,
-    clients: ToolClients
-  ) => Promise<unknown>;
+  handler: (args: z.infer<z.ZodObject<Shape>>, clients: ToolClients) => Promise<unknown>;
 }
 
 /** Identity helper that preserves per-tool schema inference for the handler args. */
 export const defineTool = <Shape extends z.ZodRawShape>(
-  definition: ToolDefinition<Shape>
+  definition: ToolDefinition<Shape>,
 ): ToolDefinition<Shape> => definition;
 
 /**
@@ -56,7 +53,7 @@ interface PaginatedResult {
  */
 export const paginatedResult = (
   apiResponse: { total_results: number; page: number; total_pages: number },
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ): PaginatedResult => ({ [PAGINATED]: true, apiResponse, data });
 
 const isPaginatedResult = (value: unknown): value is PaginatedResult =>
@@ -75,15 +72,12 @@ export class ToolResponseError extends Error {
 }
 
 /** Abort the current handler and return an already-formatted MCP response. */
-export const failWith = (
-  response: ReturnType<typeof createErrorResponse>
-): never => {
+export const failWith = (response: ReturnType<typeof createErrorResponse>): never => {
   throw new ToolResponseError(response);
 };
 
 /** Error-handling context for a tool, derived once from its title. */
-const errorContext = (definition: AnyToolDefinition): string =>
-  definition.title.toLowerCase();
+const errorContext = (definition: AnyToolDefinition): string => definition.title.toLowerCase();
 
 /**
  * Register a {@link ToolDefinition} on the server. One try/catch wraps every
@@ -93,7 +87,7 @@ const errorContext = (definition: AnyToolDefinition): string =>
 export const registerTool = (
   server: McpServer,
   definition: AnyToolDefinition,
-  clients: ToolClients
+  clients: ToolClients,
 ) => {
   server.registerTool(
     definition.name,
@@ -115,6 +109,6 @@ export const registerTool = (
         }
         return createErrorResponse(errorContext(definition), error);
       }
-    }
+    },
   );
 };

@@ -9,10 +9,7 @@ export const searchSeriesTool = defineTool({
     "Search for TV series by title. Returns a list of matching series with basic info (title, year, IMDb ID).",
   schema: {
     query: z.string().describe("TV series title to search for"),
-    year: z
-      .string()
-      .optional()
-      .describe("Filter results by release year (e.g., '2023')"),
+    year: z.string().optional().describe("Filter results by release year (e.g., '2023')"),
     page: z
       .number()
       .min(1)

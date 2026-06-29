@@ -8,9 +8,7 @@ export const getAllEpisodesTool = defineTool({
   description:
     "Get all episodes across all seasons of a TV series. Returns episode titles, ratings, and air dates for the entire series. Useful for analyzing rating trends over time.",
   schema: {
-    seriesId: z
-      .string()
-      .describe("IMDb ID of the TV series (e.g., 'tt0411008' for Lost)"),
+    seriesId: z.string().describe("IMDb ID of the TV series (e.g., 'tt0411008' for Lost)"),
   },
   handler: async ({ seriesId }, { omdb }) => {
     const seasons = await omdb.getAllEpisodes({ seriesId });

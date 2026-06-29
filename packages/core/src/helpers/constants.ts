@@ -8,8 +8,7 @@ export const TMDB_MAX_PAGES = 500;
 export const OMDB_RESULTS_PER_PAGE = 10;
 
 /** Cap total pages to TMDB's maximum allowed value */
-export const capTotalPages = (totalPages: number): number =>
-  Math.min(totalPages, TMDB_MAX_PAGES);
+export const capTotalPages = (totalPages: number): number => Math.min(totalPages, TMDB_MAX_PAGES);
 
 export const MOVIE_GENRE_MAP: Record<string, number> = {
   action: 28,
@@ -54,10 +53,7 @@ export const TV_GENRE_MAP: Record<string, number> = {
   western: 37,
 };
 
-export const getGenreId = (
-  genreName: string,
-  genreMap: Record<string, number>
-): number | null => {
+export const getGenreId = (genreName: string, genreMap: Record<string, number>): number | null => {
   const normalizedGenre = genreName.toLowerCase().trim();
   return genreMap[normalizedGenre] || null;
 };

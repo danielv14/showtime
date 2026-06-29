@@ -29,7 +29,7 @@ const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 export class TmdbApiError extends Error {
   constructor(
     message: string,
-    public statusCode?: number
+    public statusCode?: number,
   ) {
     super(message);
     this.name = "TmdbApiError";
@@ -52,7 +52,7 @@ const TMDB_PARAM_NAMES: Record<string, string> = {
  * client interface.
  */
 export const buildSearchParams = (
-  options: Record<string, string | number | undefined>
+  options: Record<string, string | number | undefined>,
 ): Record<string, string | number> => {
   const searchParams: Record<string, string | number> = {};
   for (const [key, value] of Object.entries(options)) {
@@ -67,11 +67,8 @@ export const buildSearchParams = (
  * `tv/123/watch/providers`. Keeps the movie/tv twin methods from drifting
  * apart. Exported for the module's own tests; not part of the client interface.
  */
-export const mediaPath = (
-  type: "movie" | "tv",
-  id: number,
-  suffix: string
-): string => `${type}/${id}/${suffix}`;
+export const mediaPath = (type: "movie" | "tv", id: number, suffix: string): string =>
+  `${type}/${id}/${suffix}`;
 
 export const createTmdbClient = (apiKey: string) => {
   const kyClient: KyInstance = ky.create({
@@ -87,17 +84,14 @@ export const createTmdbClient = (apiKey: string) => {
     },
   });
 
-  const getImageUrl = (
-    path: string | null,
-    size: string = "w500"
-  ): string | null => {
+  const getImageUrl = (path: string | null, size: string = "w500"): string | null => {
     if (!path) return null;
     return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
   };
 
   const searchMovies = async (
     query: string,
-    options?: { page?: number; year?: number }
+    options?: { page?: number; year?: number },
   ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get("search/movie", {
@@ -112,7 +106,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const searchPerson = async (
     query: string,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbPersonSearchResult>> => {
     return kyClient
       .get("search/person", {
@@ -121,27 +115,19 @@ export const createTmdbClient = (apiKey: string) => {
       .json<TmdbSearchResponse<TmdbPersonSearchResult>>();
   };
 
-  const getPersonDetails = async (
-    personId: number
-  ): Promise<TmdbPersonDetails> => {
+  const getPersonDetails = async (personId: number): Promise<TmdbPersonDetails> => {
     return kyClient.get(`person/${personId}`).json<TmdbPersonDetails>();
   };
 
-  const getPersonMovieCredits = async (
-    personId: number
-  ): Promise<TmdbPersonMovieCredits> => {
-    return kyClient
-      .get(`person/${personId}/movie_credits`)
-      .json<TmdbPersonMovieCredits>();
+  const getPersonMovieCredits = async (personId: number): Promise<TmdbPersonMovieCredits> => {
+    return kyClient.get(`person/${personId}/movie_credits`).json<TmdbPersonMovieCredits>();
   };
 
   const getMovieDetails = async (movieId: number): Promise<TmdbMovieDetails> => {
     return kyClient.get(`movie/${movieId}`).json<TmdbMovieDetails>();
   };
 
-  const getMovieByImdbId = async (
-    imdbId: string
-  ): Promise<TmdbMovieDetails | null> => {
+  const getMovieByImdbId = async (imdbId: string): Promise<TmdbMovieDetails | null> => {
     const response = await kyClient
       .get(`find/${imdbId}`, {
         searchParams: { external_source: "imdb_id" },
@@ -164,30 +150,20 @@ export const createTmdbClient = (apiKey: string) => {
     return kyClient.get(mediaPath("tv", tvId, "credits")).json<TmdbCredits>();
   };
 
-  const getWatchProviders = async (
-    movieId: number
-  ): Promise<TmdbWatchProviders> => {
-    return kyClient
-      .get(mediaPath("movie", movieId, "watch/providers"))
-      .json<TmdbWatchProviders>();
+  const getWatchProviders = async (movieId: number): Promise<TmdbWatchProviders> => {
+    return kyClient.get(mediaPath("movie", movieId, "watch/providers")).json<TmdbWatchProviders>();
   };
 
-  const getTvWatchProviders = async (
-    tvId: number
-  ): Promise<TmdbWatchProviders> => {
-    return kyClient
-      .get(mediaPath("tv", tvId, "watch/providers"))
-      .json<TmdbWatchProviders>();
+  const getTvWatchProviders = async (tvId: number): Promise<TmdbWatchProviders> => {
+    return kyClient.get(mediaPath("tv", tvId, "watch/providers")).json<TmdbWatchProviders>();
   };
 
   const discoverMovies = async (
-    options: DiscoverMoviesOptions
+    options: DiscoverMoviesOptions,
   ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get("discover/movie", {
-        searchParams: buildSearchParams(
-          options as Record<string, string | number | undefined>
-        ),
+        searchParams: buildSearchParams(options as Record<string, string | number | undefined>),
       })
       .json<TmdbSearchResponse<TmdbMovieSearchResult>>();
   };
@@ -209,7 +185,7 @@ export const createTmdbClient = (apiKey: string) => {
   const getTrending = async (
     mediaType: TmdbMediaType,
     timeWindow: TmdbTimeWindow,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbTrendingResult>> => {
     return kyClient
       .get(`trending/${mediaType}/${timeWindow}`, {
@@ -220,7 +196,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const getMovieRecommendations = async (
     movieId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get(mediaPath("movie", movieId, "recommendations"), {
@@ -232,7 +208,7 @@ export const createTmdbClient = (apiKey: string) => {
   // Different algorithm than recommendations - based on genres/keywords
   const getSimilarMovies = async (
     movieId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get(mediaPath("movie", movieId, "similar"), {
@@ -243,7 +219,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const searchTv = async (
     query: string,
-    options?: { page?: number; year?: number }
+    options?: { page?: number; year?: number },
   ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get("search/tv", {
@@ -262,7 +238,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const getTvRecommendations = async (
     tvId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get(mediaPath("tv", tvId, "recommendations"), {
@@ -274,7 +250,7 @@ export const createTmdbClient = (apiKey: string) => {
   // Different algorithm than recommendations - based on genres/keywords
   const getSimilarTv = async (
     tvId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get(mediaPath("tv", tvId, "similar"), {
@@ -283,29 +259,23 @@ export const createTmdbClient = (apiKey: string) => {
       .json<TmdbSearchResponse<TmdbTvSearchResult>>();
   };
 
-  const getCollection = async (
-    collectionId: number
-  ): Promise<TmdbCollectionDetails> => {
-    return kyClient
-      .get(`collection/${collectionId}`)
-      .json<TmdbCollectionDetails>();
+  const getCollection = async (collectionId: number): Promise<TmdbCollectionDetails> => {
+    return kyClient.get(`collection/${collectionId}`).json<TmdbCollectionDetails>();
   };
 
   const discoverTv = async (
-    options: DiscoverTvOptions
+    options: DiscoverTvOptions,
   ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get("discover/tv", {
-        searchParams: buildSearchParams(
-          options as Record<string, string | number | undefined>
-        ),
+        searchParams: buildSearchParams(options as Record<string, string | number | undefined>),
       })
       .json<TmdbSearchResponse<TmdbTvSearchResult>>();
   };
 
   const multiSearch = async (
     query: string,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbSearchResponse<TmdbMultiSearchResult>> => {
     return kyClient
       .get("search/multi", {
@@ -315,20 +285,17 @@ export const createTmdbClient = (apiKey: string) => {
   };
 
   const getMovieVideos = async (movieId: number): Promise<TmdbVideosResponse> => {
-    return kyClient
-      .get(mediaPath("movie", movieId, "videos"))
-      .json<TmdbVideosResponse>();
+    return kyClient.get(mediaPath("movie", movieId, "videos")).json<TmdbVideosResponse>();
   };
 
   const getTvVideos = async (tvId: number): Promise<TmdbVideosResponse> => {
-    return kyClient
-      .get(mediaPath("tv", tvId, "videos"))
-      .json<TmdbVideosResponse>();
+    return kyClient.get(mediaPath("tv", tvId, "videos")).json<TmdbVideosResponse>();
   };
 
-  const getNowPlayingMovies = async (
-    options?: { page?: number; region?: string }
-  ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
+  const getNowPlayingMovies = async (options?: {
+    page?: number;
+    region?: string;
+  }): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get("movie/now_playing", {
         searchParams: buildSearchParams({
@@ -339,9 +306,10 @@ export const createTmdbClient = (apiKey: string) => {
       .json<TmdbSearchResponse<TmdbMovieSearchResult>>();
   };
 
-  const getUpcomingMovies = async (
-    options?: { page?: number; region?: string }
-  ): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
+  const getUpcomingMovies = async (options?: {
+    page?: number;
+    region?: string;
+  }): Promise<TmdbSearchResponse<TmdbMovieSearchResult>> => {
     return kyClient
       .get("movie/upcoming", {
         searchParams: buildSearchParams({
@@ -352,9 +320,9 @@ export const createTmdbClient = (apiKey: string) => {
       .json<TmdbSearchResponse<TmdbMovieSearchResult>>();
   };
 
-  const getAiringTodayTv = async (
-    options?: { page?: number }
-  ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
+  const getAiringTodayTv = async (options?: {
+    page?: number;
+  }): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get("tv/airing_today", {
         searchParams: buildSearchParams({ page: options?.page }),
@@ -362,9 +330,9 @@ export const createTmdbClient = (apiKey: string) => {
       .json<TmdbSearchResponse<TmdbTvSearchResult>>();
   };
 
-  const getOnTheAirTv = async (
-    options?: { page?: number }
-  ): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
+  const getOnTheAirTv = async (options?: {
+    page?: number;
+  }): Promise<TmdbSearchResponse<TmdbTvSearchResult>> => {
     return kyClient
       .get("tv/on_the_air", {
         searchParams: buildSearchParams({ page: options?.page }),
@@ -374,7 +342,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const getMovieReviews = async (
     movieId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbReviewsResponse> => {
     return kyClient
       .get(mediaPath("movie", movieId, "reviews"), {
@@ -385,7 +353,7 @@ export const createTmdbClient = (apiKey: string) => {
 
   const getTvReviews = async (
     tvId: number,
-    options?: { page?: number }
+    options?: { page?: number },
   ): Promise<TmdbReviewsResponse> => {
     return kyClient
       .get(mediaPath("tv", tvId, "reviews"), {

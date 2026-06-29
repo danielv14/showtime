@@ -9,22 +9,12 @@ export const discoverTvTool = defineTool({
   description:
     "Discover TV shows using advanced filters like genre, year, rating, network, and language. Great for finding TV series that match specific criteria.",
   schema: {
-    year: z
-      .number()
-      .optional()
-      .describe("Filter by first air date year (e.g., 2023)"),
+    year: z.number().optional().describe("Filter by first air date year (e.g., 2023)"),
     genre: z
       .string()
       .optional()
-      .describe(
-        "Genre name (e.g., 'drama', 'comedy', 'sci-fi', 'crime', 'documentary')"
-      ),
-    minRating: z
-      .number()
-      .min(0)
-      .max(10)
-      .optional()
-      .describe("Minimum TMDB rating (0-10)"),
+      .describe("Genre name (e.g., 'drama', 'comedy', 'sci-fi', 'crime', 'documentary')"),
+    minRating: z.number().min(0).max(10).optional().describe("Minimum TMDB rating (0-10)"),
     language: z
       .string()
       .optional()
@@ -40,22 +30,15 @@ export const discoverTvTool = defineTool({
       ])
       .optional()
       .describe("Sort order (default: popularity.desc)"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
-  handler: async (
-    { year, genre, minRating, language, sortBy, page },
-    { tmdb }
-  ) => {
+  handler: async ({ year, genre, minRating, language, sortBy, page }, { tmdb }) => {
     let genreId: string | undefined;
     if (genre) {
       const mappedId = getGenreId(genre, TV_GENRE_MAP);
       if (!mappedId) {
         throw new Error(
-          `Unknown genre '${genre}'. Available genres: ${Object.keys(TV_GENRE_MAP).join(", ")}`
+          `Unknown genre '${genre}'. Available genres: ${Object.keys(TV_GENRE_MAP).join(", ")}`,
         );
       }
       genreId = mappedId.toString();
@@ -72,7 +55,7 @@ export const discoverTvTool = defineTool({
     });
 
     const formattedResults = result.results.map((show) =>
-      formatTmdbTvResult(show, tmdb.getImageUrl, { includeVoteCount: true })
+      formatTmdbTvResult(show, tmdb.getImageUrl, { includeVoteCount: true }),
     );
 
     return paginatedResult(result, {

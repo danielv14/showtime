@@ -9,22 +9,10 @@ export const getSeriesTool = defineTool({
   description:
     "Get detailed information about a specific TV series by IMDb ID or title. Returns full details including plot, ratings, cast, total seasons, and more.",
   schema: {
-    imdbId: z
-      .string()
-      .optional()
-      .describe("IMDb ID of the series (e.g., 'tt0903747')"),
-    title: z
-      .string()
-      .optional()
-      .describe("Exact title of the series to look up"),
-    year: z
-      .string()
-      .optional()
-      .describe("Year of release (helps disambiguate titles)"),
-    plot: z
-      .enum(["short", "full"])
-      .optional()
-      .describe("Plot length: 'short' (default) or 'full'"),
+    imdbId: z.string().optional().describe("IMDb ID of the series (e.g., 'tt0903747')"),
+    title: z.string().optional().describe("Exact title of the series to look up"),
+    year: z.string().optional().describe("Year of release (helps disambiguate titles)"),
+    plot: z.enum(["short", "full"]).optional().describe("Plot length: 'short' (default) or 'full'"),
   },
   handler: async ({ imdbId, title, year, plot }, { omdb }) => {
     const guardError = requireAtLeastOne("getting series details", {
@@ -39,7 +27,7 @@ export const getSeriesTool = defineTool({
 
     if (result.Type !== "series") {
       throw new Error(
-        `The result is a ${result.Type}, not a series. Use the appropriate tool for ${result.Type}.`
+        `The result is a ${result.Type}, not a series. Use the appropriate tool for ${result.Type}.`,
       );
     }
 

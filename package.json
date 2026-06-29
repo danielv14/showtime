@@ -7,6 +7,7 @@
     "ready": "vp check && vp run -r test && vp run -r build",
     "dev": "vp run web#dev",
     "check": "vp check",
+    "test": "vp run -r test",
     "fix": "vp check --fix"
   },
   "devDependencies": {

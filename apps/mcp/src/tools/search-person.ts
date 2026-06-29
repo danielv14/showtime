@@ -9,11 +9,7 @@ export const searchPersonTool = defineTool({
     "Search for actors, directors, and other crew members by name. Returns a list of matching people with their TMDB ID (needed for filmography lookup), known department, and notable works.",
   schema: {
     query: z.string().describe("Person name to search for"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async ({ query, page }, { tmdb }) => {
     const result = await tmdb.searchPerson(query, { page });

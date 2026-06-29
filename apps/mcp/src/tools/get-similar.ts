@@ -9,19 +9,9 @@ export const getSimilarTool = defineTool({
   description:
     "Get similar movies or TV shows based on genres and keywords. Different from recommendations - this uses genre/keyword matching rather than TMDB's recommendation algorithm.",
   schema: {
-    movieId: z
-      .number()
-      .optional()
-      .describe("TMDB movie ID (use search_movies to find IDs)"),
-    tvId: z
-      .number()
-      .optional()
-      .describe("TMDB TV series ID (use search_series to find IDs)"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    movieId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
+    tvId: z.number().optional().describe("TMDB TV series ID (use search_series to find IDs)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
   handler: async ({ movieId, tvId, page }, clients) => {
     // This tool's identifiers are movieId/tvId, so it guards with their names
@@ -34,7 +24,7 @@ export const getSimilarTool = defineTool({
       clients,
       movieId !== undefined
         ? { mediaType: "movie", tmdbId: movieId }
-        : { mediaType: "tv", tmdbId: tvId }
+        : { mediaType: "tv", tmdbId: tvId },
     );
 
     // The source's genres are not part of ResolvedMedia, so fetch details for them.
@@ -47,7 +37,7 @@ export const getSimilarTool = defineTool({
       const formattedResults = similarResult.results.map((movie) =>
         formatTmdbMovieResult(movie, clients.tmdb.getImageUrl, {
           includeVoteCount: true,
-        })
+        }),
       );
 
       return paginatedResult(similarResult, {
@@ -69,7 +59,7 @@ export const getSimilarTool = defineTool({
     const formattedResults = similarResult.results.map((show) =>
       formatTmdbTvResult(show, clients.tmdb.getImageUrl, {
         includeVoteCount: true,
-      })
+      }),
     );
 
     return paginatedResult(similarResult, {

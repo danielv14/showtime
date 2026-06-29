@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import type { ExternalRating, MediaDetail } from "../server/media";
+import type { EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
@@ -22,7 +22,13 @@ const RatingChip = ({ rating }: { rating: ExternalRating }) => (
   </div>
 );
 
-export const DetailView = ({ detail }: { detail: MediaDetail }) => {
+export const DetailView = ({
+  detail,
+  ratings,
+}: {
+  detail: MediaDetail;
+  ratings?: Promise<EpisodeRatingsData | null> | null;
+}) => {
   const facts = [
     detail.year,
     detail.runtime,
@@ -150,9 +156,7 @@ export const DetailView = ({ detail }: { detail: MediaDetail }) => {
           <WhereToWatch data={detail.whereToWatch} />
         </section>
 
-        {detail.mediaType === "tv" && detail.imdbId ? (
-          <EpisodeRatings imdbId={detail.imdbId} />
-        ) : null}
+        {detail.mediaType === "tv" && ratings ? <EpisodeRatings ratings={ratings} /> : null}
 
         {detail.cast.length > 0 ? (
           <section>

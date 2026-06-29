@@ -7,9 +7,7 @@ export const getEpisodeTool = defineTool({
   description:
     "Get detailed information about a specific TV episode. Requires the series IMDb ID and season/episode numbers.",
   schema: {
-    seriesId: z
-      .string()
-      .describe("IMDb ID of the TV series (e.g., 'tt0903747' for Breaking Bad)"),
+    seriesId: z.string().describe("IMDb ID of the TV series (e.g., 'tt0903747' for Breaking Bad)"),
     season: z.number().min(1).describe("Season number"),
     episode: z.number().min(1).describe("Episode number"),
   },

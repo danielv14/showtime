@@ -10,15 +10,10 @@ export const MediaRow = ({ title, items }: MediaRowProps) => {
   if (!items?.length) return null;
   return (
     <section className="mt-10">
-      <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">
-        {title}
-      </h2>
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-zinc-100">{title}</h2>
       <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6">
         {items.map((item) => (
-          <div
-            key={`${item.mediaType}-${item.id}`}
-            className="w-36 shrink-0 sm:w-40"
-          >
+          <div key={`${item.mediaType}-${item.id}`} className="w-36 shrink-0 sm:w-40">
             <MediaCard item={item} />
           </div>
         ))}

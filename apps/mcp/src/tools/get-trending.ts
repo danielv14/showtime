@@ -6,8 +6,7 @@ import { NA } from "@showtime/core";
 export const getTrendingTool = defineTool({
   name: "get_trending",
   title: "Get Trending",
-  description:
-    "Get trending movies and TV shows. Great for discovering what's popular right now.",
+  description: "Get trending movies and TV shows. Great for discovering what's popular right now.",
   schema: {
     mediaType: z
       .enum(["movie", "tv", "all"])
@@ -17,16 +16,9 @@ export const getTrendingTool = defineTool({
       .enum(["day", "week"])
       .optional()
       .describe("Time window: 'day' or 'week' (default: 'week')"),
-    page: z
-      .number()
-      .min(1)
-      .optional()
-      .describe("Page number for pagination (20 results per page)"),
+    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
   },
-  handler: async (
-    { mediaType = "all", timeWindow = "week", page },
-    { tmdb }
-  ) => {
+  handler: async ({ mediaType = "all", timeWindow = "week", page }, { tmdb }) => {
     const result = await tmdb.getTrending(mediaType, timeWindow, { page });
 
     const formattedResults = result.results.map((item) => {

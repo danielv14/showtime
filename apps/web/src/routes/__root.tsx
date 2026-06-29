@@ -37,8 +37,7 @@ export const Route = createRootRoute({
       { title: "Showtime — Movies & TV" },
       {
         name: "description",
-        content:
-          "Browse trending movies and TV shows, search, and find where to watch.",
+        content: "Browse trending movies and TV shows, search, and find where to watch.",
       },
     ],
     links: [
