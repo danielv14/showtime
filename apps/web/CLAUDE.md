@@ -41,11 +41,11 @@ Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv
 Workers Builds settings (the one non-obvious part is that CI has no global `vp`):
 
 - **Root directory**: repo root, so the pnpm workspace and catalog resolve.
-- **Build command** (must be set — without a build, `dist/` is empty and `wrangler deploy` fails with `entry-point @tanstack/react-start/server-entry not found`):
+- **Build command**:
   ```
-  cd apps/web && ./node_modules/.bin/vp build
+  pnpm install --no-frozen-lockfile && cd apps/web && ./node_modules/.bin/vp build
   ```
-  Cloudflare auto-runs `pnpm install --frozen-lockfile` before this, which honors the `allowBuilds` approvals in the root `pnpm-workspace.yaml` (so `workerd`/`esbuild`/`sharp` build) and installs the local `vp` binary. There is no standalone `vite` binary, so the build goes through that local `vp`.
+  The leading non-frozen `pnpm install` is required. Cloudflare's automatic install is `pnpm install --frozen-lockfile`, which reproduces the macOS-generated lockfile and does NOT extract the Linux native bindings (`@voidzero-dev/vite-plus-linux-x64-gnu`, rolldown, oxc), so `vp build` fails with "Cannot find native binding". A non-frozen reinstall on the Linux build host re-evaluates the platform-specific `optionalDependencies` and pulls the right bindings. (`supportedArchitectures` in `pnpm-workspace.yaml` is kept for local cross-platform installs but is not honored under `--frozen-lockfile`.) There is no standalone `vite` binary, so the build runs through the local `vp`. Without a build, `dist/` is empty and `wrangler deploy` fails with `entry-point @tanstack/react-start/server-entry not found`.
 - **Deploy command** — call wrangler's binary directly. `npx` would invoke npm, which aborts with `EBADDEVENGINES` because the root `package.json` pins pnpm via `devEngines.packageManager`:
   ```
   cd apps/web && ./node_modules/.bin/wrangler deploy
