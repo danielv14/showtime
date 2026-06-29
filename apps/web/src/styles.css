@@ -25,10 +25,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: inherit;
-}
-
 /* Slim, dark scrollbars for the horizontal media rows */
 * {
   scrollbar-width: thin;
