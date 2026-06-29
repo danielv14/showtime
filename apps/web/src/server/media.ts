@@ -325,12 +325,14 @@ export const searchMulti = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const query = data?.trim();
     if (!query) return { query: "", results: [] as SearchItem[] };
-    const tmdb = getTmdb();
-    const response = await tmdb.multiSearch(query);
-    const results = response.results
-      .map(fromMulti)
-      .filter((item): item is SearchItem => item !== null);
-    return { query, results };
+    return cached(`search:${query.toLowerCase()}`, TTL.hour, async () => {
+      const tmdb = getTmdb();
+      const response = await tmdb.multiSearch(query);
+      const results = response.results
+        .map(fromMulti)
+        .filter((item): item is SearchItem => item !== null);
+      return { query, results };
+    });
   });
 
 export const getMovieDetail = createServerFn({ method: "GET" })
