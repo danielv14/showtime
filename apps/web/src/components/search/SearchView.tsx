@@ -2,6 +2,7 @@ import type { SearchFilters as SearchFiltersState } from "#/server/search";
 import type { MediaItem, PersonItem, SearchItem } from "#/server/media";
 import { MediaGrid } from "#/components/media/MediaGrid";
 import { PersonCard } from "#/components/media/PersonCard";
+import { EmptyState } from "#/components/ui/EmptyState";
 import { Pagination } from "#/components/ui/Pagination";
 import { SearchBar } from "./SearchBar";
 import { SearchFilters } from "./SearchFilters";
@@ -65,9 +66,7 @@ export const SearchView = ({
           ) : null}
 
           {results.length === 0 ? (
-            <p className="py-16 text-center text-sm text-zinc-500">
-              No results match your search. Try a different query or filter.
-            </p>
+            <EmptyState>No results match your search. Try a different query or filter.</EmptyState>
           ) : (
             <Pagination to="/search" page={page} totalPages={totalPages} />
           )}

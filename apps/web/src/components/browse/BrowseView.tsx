@@ -1,6 +1,7 @@
 import type { BrowseFilters as BrowseFiltersState, GenreOption } from "#/server/browse";
 import type { MediaItem } from "#/server/media";
 import { MediaGrid } from "#/components/media/MediaGrid";
+import { EmptyState } from "#/components/ui/EmptyState";
 import { Pagination } from "#/components/ui/Pagination";
 import { BrowseFilters } from "./BrowseFilters";
 
@@ -44,9 +45,7 @@ export const BrowseView = ({
         <Pagination to={to} page={page} totalPages={totalPages} />
       </>
     ) : (
-      <p className="py-16 text-center text-sm text-zinc-500">
-        No titles match these filters. Try widening your selection.
-      </p>
+      <EmptyState>No titles match these filters. Try widening your selection.</EmptyState>
     )}
   </main>
 );
