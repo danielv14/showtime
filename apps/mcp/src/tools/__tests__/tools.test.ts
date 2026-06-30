@@ -3,6 +3,7 @@ import type { TmdbClient, OmdbClient } from "@showtime/core";
 import { searchMoviesTool } from "../search-movies.js";
 import { getNowPlayingTool } from "../get-now-playing.js";
 import { getMovieTool } from "../get-movie.js";
+import { getFilmographyTool } from "../get-filmography.js";
 import { getSeriesTool } from "../get-series.js";
 import { getWhereToWatchTool } from "../get-where-to-watch.js";
 import { registerTestTool, parseSuccess, createFakeClients } from "./harness.js";
@@ -195,6 +196,87 @@ describe("get_movie (hybrid OMDB + TMDB)", () => {
     expect(response.isError).toBe(true);
     expect(response.content[0]?.text).toContain("At least one of");
     expect(response.content[0]?.text).toContain("getting movie details");
+  });
+});
+
+describe("get_filmography (crew classification through core helpers)", () => {
+  // One person, one set of movie crew credits exercising every role bucket:
+  // director, the three writer jobs, a Writing-department-only job, a producer
+  // pair, and an Editor that must not surface under any role.
+  const filmographyClients = () =>
+    createFakeClients({
+      tmdb: {
+        getPersonDetails: async (id: number) =>
+          ({
+            id,
+            name: "Test Person",
+            known_for_department: "Directing",
+            biography: "",
+            birthday: null,
+            deathday: null,
+            place_of_birth: null,
+            profile_path: null,
+            imdb_id: "nm0000001",
+          }) as unknown as Awaited<ReturnType<TmdbClient["getPersonDetails"]>>,
+        getPersonMovieCredits: async () =>
+          ({
+            id: 1,
+            cast: [],
+            crew: [
+              { id: 10, title: "Directed Film", job: "Director", department: "Directing" },
+              { id: 20, title: "Screenplay Film", job: "Screenplay", department: "Writing" },
+              { id: 30, title: "Writer Film", job: "Writer", department: "Writing" },
+              { id: 40, title: "Story Film", job: "Story", department: "Writing" },
+              { id: 50, title: "Novel Film", job: "Novel", department: "Writing" },
+              { id: 60, title: "Produced Film", job: "Producer", department: "Production" },
+              {
+                id: 70,
+                title: "Exec Film",
+                job: "Executive Producer",
+                department: "Production",
+              },
+              { id: 80, title: "Edited Film", job: "Editor", department: "Editing" },
+            ].map((c) => ({
+              original_title: c.title,
+              release_date: "2020-01-01",
+              poster_path: null,
+              vote_average: 7,
+              vote_count: 100,
+              credit_id: `c${c.id}`,
+              ...c,
+            })),
+          }) as unknown as Awaited<ReturnType<TmdbClient["getPersonMovieCredits"]>>,
+      },
+    });
+
+  const titlesFor = async (role: string): Promise<string[]> => {
+    const tool = registerTestTool(getFilmographyTool, filmographyClients());
+    const payload = parseSuccess(await tool.invoke({ personId: 1, role })) as {
+      filmography: { title: string }[];
+    };
+    return payload.filmography.map((credit) => credit.title).sort();
+  };
+
+  it("classifies writers as Screenplay, Writer, Story, or any Writing-department credit", async () => {
+    expect(await titlesFor("writer")).toEqual([
+      "Novel Film",
+      "Screenplay Film",
+      "Story Film",
+      "Writer Film",
+    ]);
+  });
+
+  it("classifies directors as the Director job only", async () => {
+    expect(await titlesFor("director")).toEqual(["Directed Film"]);
+  });
+
+  it("classifies producers as Producer or Executive Producer", async () => {
+    expect(await titlesFor("producer")).toEqual(["Exec Film", "Produced Film"]);
+  });
+
+  it("excludes crew jobs that match no role bucket (e.g. Editor)", async () => {
+    const allCrewTitles = await titlesFor("all");
+    expect(allCrewTitles).not.toContain("Edited Film");
   });
 });
 

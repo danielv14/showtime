@@ -1,8 +1,7 @@
 import { z } from "zod";
 import type { TmdbMovieCredit } from "@showtime/core";
 import { defineTool } from "./define-tool.js";
-import { extractYear } from "@showtime/core";
-import { NA } from "@showtime/core";
+import { filterCrewByJob, isWriterCredit, extractYear, NA } from "@showtime/core";
 
 export const getFilmographyTool = defineTool({
   name: "get_filmography",
@@ -56,33 +55,34 @@ export const getFilmographyTool = defineTool({
       );
     }
 
+    // The role filters below are intentionally non-deduping: a person can hold
+    // several crew jobs on one film, and each distinct job is accumulated per
+    // movie by uniqueCreditsMap further down. Crew classification (which job or
+    // department counts as director/writer/producer) flows through the shared
+    // @showtime/core helpers so the rule lives in one place.
     if (role === "all" || role === "director") {
       filteredCredits.push(
-        ...movieCredits.crew
-          .filter((credit) => credit.job === "Director")
-          .map((credit) => ({ ...credit, creditType: "crew" as const })),
+        ...filterCrewByJob(movieCredits.crew, ["Director"]).map((credit) => ({
+          ...credit,
+          creditType: "crew" as const,
+        })),
       );
     }
 
     if (role === "all" || role === "writer") {
       filteredCredits.push(
         ...movieCredits.crew
-          .filter(
-            (credit) =>
-              credit.job === "Writer" ||
-              credit.job === "Screenplay" ||
-              credit.job === "Story" ||
-              credit.department === "Writing",
-          )
+          .filter(isWriterCredit)
           .map((credit) => ({ ...credit, creditType: "crew" as const })),
       );
     }
 
     if (role === "all" || role === "producer") {
       filteredCredits.push(
-        ...movieCredits.crew
-          .filter((credit) => credit.job === "Producer" || credit.job === "Executive Producer")
-          .map((credit) => ({ ...credit, creditType: "crew" as const })),
+        ...filterCrewByJob(movieCredits.crew, ["Producer", "Executive Producer"]).map((credit) => ({
+          ...credit,
+          creditType: "crew" as const,
+        })),
       );
     }
 

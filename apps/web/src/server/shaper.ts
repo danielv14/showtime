@@ -1,6 +1,7 @@
 import {
   buildTmdbImageUrl as img,
   crewByJob,
+  crewWriters,
   extractOmdbRatings,
   extractYear,
   formatReview,
@@ -431,6 +432,11 @@ const mapCast = (credits: TmdbCredits | null): CastMember[] =>
 const crewCredits = (credits: TmdbCredits | null, jobs: string[]): CreditName[] =>
   crewByJob(credits?.crew, jobs).map((member) => ({ id: member.id, name: member.name }));
 
+// Writers use the shared inclusive rule (WRITER_JOBS or the Writing department),
+// so the web surface, get-movie and get-filmography all classify writers the same way.
+const writerCredits = (credits: TmdbCredits | null): CreditName[] =>
+  crewWriters(credits?.crew).map((member) => ({ id: member.id, name: member.name }));
+
 export const firstTrailerUrl = (videos: TmdbVideosResponse | null): string | null =>
   selectTrailerUrl(videos);
 
@@ -568,7 +574,7 @@ export const shapeMovie = (
   year: extractYear(d.release_date),
   runtime: d.runtime ? `${d.runtime} min` : null,
   directors: crewCredits(credits, ["Director"]),
-  writers: crewCredits(credits, ["Screenplay", "Writer", "Story"]),
+  writers: writerCredits(credits),
   collection: d.belongs_to_collection
     ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name }
     : null,

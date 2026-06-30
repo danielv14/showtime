@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
-import { crewByJob, filterCrewByJob, filterCrewByDepartment } from "@showtime/core";
+import { crewByJob, crewWriters } from "@showtime/core";
 import { NA } from "@showtime/core";
 import type { TmdbMovieDetails } from "@showtime/core";
 import { requireAtLeastOne } from "./helpers/resolvers.js";
@@ -144,14 +144,7 @@ export const getMovieTool = defineTool({
       }));
 
       const directors = crewByJob(tmdbCredits.crew, ["Director"]);
-      const writers = [
-        ...new Map(
-          [
-            ...filterCrewByJob(tmdbCredits.crew, ["Screenplay", "Writer"]),
-            ...filterCrewByDepartment(tmdbCredits.crew, "Writing"),
-          ].map((member) => [member.id, member]),
-        ).values(),
-      ];
+      const writers = crewWriters(tmdbCredits.crew);
       const composers = crewByJob(tmdbCredits.crew, ["Original Music Composer"]);
       const cinematographers = crewByJob(tmdbCredits.crew, ["Director of Photography"]);
 

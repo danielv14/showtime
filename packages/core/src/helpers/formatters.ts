@@ -3,7 +3,6 @@ import type {
   TmdbTvSearchResult,
   TmdbReview,
   TmdbVideo,
-  TmdbCrewMember,
   TmdbWatchProvider,
   TmdbVideosResponse,
   TmdbWatchProviders,
@@ -116,13 +115,54 @@ export const formatVideo = (video: TmdbVideo) => {
   };
 };
 
+/**
+ * The minimal crew-credit shape the classification helpers read. Both
+ * `TmdbCrewMember` (movie credits) and `TmdbMovieCredit` (a person's filmography
+ * crew entries, where `job`/`department` are optional) satisfy it, so the same
+ * writer/director/producer rule applies on every surface.
+ */
+export interface CrewLike {
+  id: number;
+  job?: string;
+  department?: string;
+}
+
+/**
+ * Canonical "writer" job titles. The Writing department also covers jobs such as
+ * "Story", "Author" and "Novel", so {@link crewWriters} unions these jobs with
+ * the whole Writing department to avoid dropping any writing credit. "Story" is
+ * listed here so a credit tagged with the Story job is matched even if the
+ * upstream omits its department.
+ */
+export const WRITER_JOBS = ["Screenplay", "Writer", "Story"] as const;
+
+/**
+ * The single, inclusive "is this a writing credit?" rule: a {@link WRITER_JOBS}
+ * job OR a Writing department credit. Every surface (get-movie, get-filmography,
+ * the web shaper) classifies writers through this one predicate so the
+ * definition never drifts between them.
+ */
+export const isWriterCredit = (member: CrewLike): boolean =>
+  (member.job !== undefined && (WRITER_JOBS as readonly string[]).includes(member.job)) ||
+  member.department === "Writing";
+
 /** Filter crew members by specific job titles */
-export const filterCrewByJob = (crew: TmdbCrewMember[], jobs: string[]) =>
-  crew.filter((member) => jobs.includes(member.job));
+export const filterCrewByJob = <T extends CrewLike>(crew: T[], jobs: readonly string[]): T[] =>
+  crew.filter((member) => member.job !== undefined && jobs.includes(member.job));
 
 /** Filter crew members by department */
-export const filterCrewByDepartment = (crew: TmdbCrewMember[], department: string) =>
+export const filterCrewByDepartment = <T extends CrewLike>(crew: T[], department: string): T[] =>
   crew.filter((member) => member.department === department);
+
+/** Dedupe crew entries by id, keeping the first occurrence's order. */
+const dedupeById = <T extends CrewLike>(crew: T[]): T[] => {
+  const seen = new Set<number>();
+  return crew.filter((member) => {
+    if (seen.has(member.id)) return false;
+    seen.add(member.id);
+    return true;
+  });
+};
 
 /**
  * Select crew members matching any of the given jobs, deduped by id and keeping
@@ -130,13 +170,24 @@ export const filterCrewByDepartment = (crew: TmdbCrewMember[], department: strin
  * jobs (or listed twice by the upstream) appears once. Returns the full crew
  * objects so callers can read whichever fields they need (name, job, id, ...).
  */
-export const crewByJob = (crew: TmdbCrewMember[] | undefined, jobs: string[]): TmdbCrewMember[] => {
-  const seen = new Set<number>();
-  return filterCrewByJob(crew ?? [], jobs).filter((member) => {
-    if (seen.has(member.id)) return false;
-    seen.add(member.id);
-    return true;
-  });
+export const crewByJob = <T extends CrewLike>(
+  crew: T[] | undefined,
+  jobs: readonly string[],
+): T[] => dedupeById(filterCrewByJob(crew ?? [], jobs));
+
+/**
+ * Select writing-credit crew members per {@link isWriterCredit}: anyone with a
+ * {@link WRITER_JOBS} job OR a Writing department credit. The single, inclusive
+ * definition of "writer" shared by every surface, so no credit is dropped from
+ * one tool but kept by another. Deduped by id, listing {@link WRITER_JOBS} job
+ * matches first and then any remaining Writing-department-only matches.
+ */
+export const crewWriters = <T extends CrewLike>(crew: T[] | undefined): T[] => {
+  const list = crew ?? [];
+  return dedupeById([
+    ...filterCrewByJob(list, WRITER_JOBS),
+    ...filterCrewByDepartment(list, "Writing"),
+  ]);
 };
 
 /**
