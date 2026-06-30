@@ -141,27 +141,29 @@ export const createOmdbClient = (
   apiKey: string,
   httpClient: HttpClient = createOmdbHttpClient(),
 ) => {
-  const handleResponse = <T>(response: T | OmdbErrorResponse): T => {
-    if (
-      "Response" in (response as object) &&
-      (response as OmdbErrorResponse).Response === "False"
-    ) {
+  const handleResponse = <T>(response: T): T => {
+    const maybeError = response as Partial<OmdbErrorResponse>;
+    if (maybeError.Response === "False") {
       // A wire-level `Response: "False"` is OMDB saying it has no result for
       // this query, so it is a permanent miss rather than a transient fault.
-      throw new OmdbApiError((response as OmdbErrorResponse).Error, "not_found");
+      throw new OmdbApiError(maybeError.Error ?? "", "not_found");
     }
-    return response as T;
+    return response;
   };
 
   /**
    * Issue an OMDB GET (every endpoint is the base URL with query params) and
-   * translate the seam's transport failure into an `OmdbApiError`, so the
-   * package's "failures throw OmdbApiError" convention holds for outages and
-   * timeouts as it already does for OMDB's wire-level `Response: "False"`.
+   * normalise both of OMDB's failure shapes into an `OmdbApiError`: the seam's
+   * transport failure (outage, timeout, 401) via `toOmdbError`, and OMDB's
+   * wire-level `Response: "False"` (a permanent miss) via `handleResponse`. The
+   * `apikey` is injected here so no caller can forget it.
    */
   const request = async <T>(searchParams: Record<string, string | number>): Promise<T> => {
     try {
-      return await httpClient.get<T>("", { searchParams });
+      const response = await httpClient.get<T>("", {
+        searchParams: { apikey: apiKey, ...searchParams },
+      });
+      return handleResponse(response);
     } catch (error) {
       // Translate the seam's transport failure into the right `OmdbApiError`
       // kind (rate limit vs auth vs other transient fault), reading OMDB's 401
@@ -178,7 +180,6 @@ export const createOmdbClient = (
     options: SearchOptions,
   ): Promise<OmdbSearchResponse> => {
     const searchParams: Record<string, string | number> = {
-      apikey: apiKey,
       s: options.query,
       type,
     };
@@ -186,9 +187,7 @@ export const createOmdbClient = (
     if (options.year) searchParams.y = options.year;
     if (options.page) searchParams.page = options.page;
 
-    const response = await request<OmdbSearchResponse | OmdbErrorResponse>(searchParams);
-
-    return handleResponse(response);
+    return request<OmdbSearchResponse>(searchParams);
   };
 
   const searchMovies = (options: SearchOptions) => search("movie", options);
@@ -198,23 +197,17 @@ export const createOmdbClient = (
     options: GetByIdOptions,
   ): Promise<OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails> => {
     const searchParams: Record<string, string> = {
-      apikey: apiKey,
       i: options.imdbId,
       plot: options.plot || "short",
     };
 
-    const response = await request<
-      OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails | OmdbErrorResponse
-    >(searchParams);
-
-    return handleResponse(response);
+    return request<OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails>(searchParams);
   };
 
   const getByTitle = async (
     options: GetByTitleOptions,
   ): Promise<OmdbMovieDetails | OmdbSeriesDetails> => {
     const searchParams: Record<string, string> = {
-      apikey: apiKey,
       t: options.title,
       plot: options.plot || "short",
     };
@@ -222,36 +215,26 @@ export const createOmdbClient = (
     if (options.type) searchParams.type = options.type;
     if (options.year) searchParams.y = options.year;
 
-    const response = await request<OmdbMovieDetails | OmdbSeriesDetails | OmdbErrorResponse>(
-      searchParams,
-    );
-
-    return handleResponse(response);
+    return request<OmdbMovieDetails | OmdbSeriesDetails>(searchParams);
   };
 
   const getEpisode = async (options: GetEpisodeOptions): Promise<OmdbEpisodeDetails> => {
     const searchParams: Record<string, string | number> = {
-      apikey: apiKey,
       i: options.seriesId,
       Season: options.season,
       Episode: options.episode,
     };
 
-    const response = await request<OmdbEpisodeDetails | OmdbErrorResponse>(searchParams);
-
-    return handleResponse(response);
+    return request<OmdbEpisodeDetails>(searchParams);
   };
 
   const getSeason = async (options: GetSeasonOptions): Promise<OmdbSeasonResponse> => {
     const searchParams: Record<string, string | number> = {
-      apikey: apiKey,
       i: options.seriesId,
       Season: options.season,
     };
 
-    const response = await request<OmdbSeasonResponse | OmdbErrorResponse>(searchParams);
-
-    return handleResponse(response);
+    return request<OmdbSeasonResponse>(searchParams);
   };
 
   const getAllEpisodes = async (options: GetAllEpisodesOptions): Promise<OmdbSeasonResponse[]> => {
