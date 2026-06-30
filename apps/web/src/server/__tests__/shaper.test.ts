@@ -11,7 +11,7 @@ import type {
   TmdbCollectionDetails,
   OmdbMovieDetails,
   OmdbSeasonResponse,
-  OmdbEpisodeDetails,
+  TmdbEpisodeDetails,
 } from "@showtime/core";
 import {
   firstTrailerUrl,
@@ -172,48 +172,35 @@ describe("shapeEpisodeRatings", () => {
 });
 
 describe("shapeEpisodeDetail", () => {
-  const episode = (overrides: Partial<OmdbEpisodeDetails> = {}): OmdbEpisodeDetails => ({
-    Title: "Pilot",
-    Year: "2008",
-    Rated: "TV-14",
-    Released: "20 Jan 2008",
-    Season: "1",
-    Episode: "1",
-    Runtime: "58 min",
-    Genre: "Crime, Drama, Thriller",
-    Director: "Vince Gilligan",
-    Writer: "Vince Gilligan",
-    Actors: "Bryan Cranston, Aaron Paul, Anna Gunn",
-    Plot: "A chemistry teacher starts cooking meth.",
-    Language: "English",
-    Country: "United States",
-    Awards: "N/A",
-    Poster: "https://example.com/poster.jpg",
-    Ratings: [],
-    Metascore: "N/A",
-    imdbRating: "8.9",
-    imdbVotes: "1000",
-    imdbID: "tt0959621",
-    Type: "episode",
-    seriesID: "tt0903747",
-    Response: "True",
+  const episode = (overrides: Partial<TmdbEpisodeDetails> = {}): TmdbEpisodeDetails => ({
+    id: 62085,
+    name: "Pilot",
+    overview: "A chemistry teacher starts cooking meth.",
+    air_date: "2008-01-20",
+    episode_number: 1,
+    season_number: 1,
+    vote_average: 8.9,
+    guest_stars: [
+      { id: 1, name: "Bryan Cranston", character: "Walter White", profile_path: null, order: 0 },
+      { id: 2, name: "Aaron Paul", character: "Jesse Pinkman", profile_path: null, order: 1 },
+    ],
     ...overrides,
   });
 
-  it("maps plot, cast (split into names), rating, air date and numbers", () => {
+  it("maps plot, guest-star cast, rating, air date and numbers from TMDB", () => {
     const result = shapeEpisodeDetail(episode());
     expect(result.season).toBe(1);
     expect(result.episode).toBe(1);
     expect(result.title).toBe("Pilot");
-    expect(result.airDate).toBe("20 Jan 2008");
+    expect(result.airDate).toBe("2008-01-20");
     expect(result.rating).toBeCloseTo(8.9);
     expect(result.plot).toBe("A chemistry teacher starts cooking meth.");
-    expect(result.cast).toEqual(["Bryan Cranston", "Aaron Paul", "Anna Gunn"]);
+    expect(result.cast).toEqual(["Bryan Cranston", "Aaron Paul"]);
   });
 
-  it("collapses OMDB 'N/A' and empty fields to clean nulls / empty cast", () => {
+  it("collapses a missing plot / air date / unrated episode to clean nulls and empty cast", () => {
     const result = shapeEpisodeDetail(
-      episode({ Plot: "N/A", Actors: "N/A", Released: "", imdbRating: "N/A" }),
+      episode({ overview: "", air_date: null, vote_average: 0, guest_stars: [] }),
     );
     expect(result.plot).toBeNull();
     expect(result.cast).toEqual([]);

@@ -27,6 +27,7 @@ import type {
   TmdbMultiSearchResult,
   TmdbVideosResponse,
   TmdbReviewsResponse,
+  TmdbEpisodeDetails,
 } from "./types.js";
 
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -327,6 +328,16 @@ export const createTmdbClient = (
     return request<TmdbVideosResponse>(mediaPath("tv", tvId, "videos"));
   };
 
+  const getTvEpisodeDetails = async (
+    tvId: number,
+    seasonNumber: number,
+    episodeNumber: number,
+  ): Promise<TmdbEpisodeDetails> => {
+    return request<TmdbEpisodeDetails>(
+      `tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`,
+    );
+  };
+
   const getNowPlayingMovies = async (options?: {
     page?: number;
     region?: string;
@@ -412,6 +423,7 @@ export const createTmdbClient = (
     multiSearch,
     getMovieVideos,
     getTvVideos,
+    getTvEpisodeDetails,
     getNowPlayingMovies,
     getUpcomingMovies,
     getAiringTodayTv,

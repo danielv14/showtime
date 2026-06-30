@@ -166,6 +166,17 @@ export interface TmdbCredits {
   crew: TmdbCrewMember[];
 }
 
+export interface TmdbEpisodeDetails {
+  id: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  episode_number: number;
+  season_number: number;
+  vote_average: number;
+  guest_stars: TmdbCastMember[];
+}
+
 // Watch Providers
 export interface TmdbWatchProvider {
   provider_id: number;
