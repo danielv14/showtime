@@ -4,6 +4,7 @@ import {
   type BrowseSort,
   type GenreOption,
 } from "../server/browse";
+import { Select, type SelectOption } from "./Select";
 
 const SORT_LABELS: Record<BrowseSort, string> = {
   popularity: "Most popular",
@@ -14,11 +15,11 @@ const SORT_LABELS: Record<BrowseSort, string> = {
 const RATING_OPTIONS = [9, 8, 7, 6, 5] as const;
 
 /**
- * Filter controls for a browse view, built as a native GET form so filtering
- * works without client JS (mirroring `SearchBar`). The form's `action` is the
- * browse route path and each control's `name` is the matching URL search param,
- * so a submit produces a shareable, bookmarkable URL. With JS, changing any
- * control auto-submits for an instant feel; the "Apply" button covers no-JS.
+ * Filter controls for a browse view, built as a native GET form so the result is
+ * a shareable, bookmarkable URL (mirroring `SearchBar`). The form's `action` is
+ * the browse route path and each control's `name` is the matching URL search
+ * param, so a submit navigates to the filtered URL. Each `Select` auto-submits
+ * on change for an instant feel; the "Apply" button covers users without JS.
  *
  * `page` is intentionally not a field here: changing a filter should drop the
  * viewer back to page 1 rather than a now-meaningless deep page.
@@ -34,15 +35,24 @@ export const BrowseFilters = ({
   filters: BrowseFiltersState;
   yearRange: { min: number; max: number };
 }) => {
-  const years: number[] = [];
-  for (let year = yearRange.max; year >= yearRange.min; year--) years.push(year);
+  const genreOptions: SelectOption[] = [
+    { value: "", label: "All genres" },
+    ...genres.map((genre) => ({ value: String(genre.id), label: genre.name })),
+  ];
 
-  // Auto-submit on change when JS is available; harmless no-op without it.
-  const submit = (event: { currentTarget: { form: HTMLFormElement | null } }) =>
-    event.currentTarget.form?.requestSubmit();
+  const ratingOptions: SelectOption[] = [
+    { value: "", label: "Any rating" },
+    ...RATING_OPTIONS.map((rating) => ({ value: String(rating), label: `${rating}+` })),
+  ];
 
-  const selectClass =
-    "rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-white/25 focus:bg-white/10";
+  const yearOptions: SelectOption[] = [{ value: "", label: "Any year" }];
+  for (let year = yearRange.max; year >= yearRange.min; year--)
+    yearOptions.push({ value: String(year), label: String(year) });
+
+  const sortOptions: SelectOption[] = BROWSE_SORTS.map((sort) => ({
+    value: sort,
+    label: SORT_LABELS[sort],
+  }));
 
   return (
     <form
@@ -51,67 +61,37 @@ export const BrowseFilters = ({
       className="flex flex-wrap items-end gap-3"
       aria-label="Filter results"
     >
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-        Genre
-        <select
-          name="genre"
-          defaultValue={filters.genre ?? ""}
-          onChange={submit}
-          className={selectClass}
-        >
-          <option value="">All genres</option>
-          {genres.map((genre) => (
-            <option key={genre.id} value={genre.id}>
-              {genre.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        name="genre"
+        label="Genre"
+        options={genreOptions}
+        defaultValue={filters.genre != null ? String(filters.genre) : ""}
+        submitOnChange
+      />
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-        Min rating
-        <select
-          name="rating"
-          defaultValue={filters.minRating ?? ""}
-          onChange={submit}
-          className={selectClass}
-        >
-          <option value="">Any rating</option>
-          {RATING_OPTIONS.map((rating) => (
-            <option key={rating} value={rating}>
-              {rating}+
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        name="rating"
+        label="Min rating"
+        options={ratingOptions}
+        defaultValue={filters.minRating != null ? String(filters.minRating) : ""}
+        submitOnChange
+      />
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-        Year
-        <select
-          name="year"
-          defaultValue={filters.year ?? ""}
-          onChange={submit}
-          className={selectClass}
-        >
-          <option value="">Any year</option>
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        name="year"
+        label="Year"
+        options={yearOptions}
+        defaultValue={filters.year != null ? String(filters.year) : ""}
+        submitOnChange
+      />
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-        Sort by
-        <select name="sort" defaultValue={filters.sort} onChange={submit} className={selectClass}>
-          {BROWSE_SORTS.map((sort) => (
-            <option key={sort} value={sort}>
-              {SORT_LABELS[sort]}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        name="sort"
+        label="Sort by"
+        options={sortOptions}
+        defaultValue={filters.sort}
+        submitOnChange
+      />
 
       <button
         type="submit"

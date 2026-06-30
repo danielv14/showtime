@@ -1,4 +1,5 @@
 import type { SearchFilters as SearchFiltersState, SearchType } from "../server/search";
+import { Select, type SelectOption } from "./Select";
 
 const TYPE_LABELS: Record<SearchType, string> = {
   all: "All",
@@ -9,10 +10,9 @@ const TYPE_LABELS: Record<SearchType, string> = {
 
 /**
  * Type + year controls for the search page, built as a native GET form pointing
- * at `/search` (mirroring `SearchBar`) so filtering works without client JS. The
- * current query rides along as a hidden field so a filter submit keeps it; with
- * JS, changing a control auto-submits for an instant feel, and the "Apply" button
- * covers the no-JS case.
+ * at `/search` (mirroring `SearchBar`). The current query rides along as a hidden
+ * field so a filter submit keeps it; each `Select` auto-submits on change for an
+ * instant feel, and the "Apply" button covers users without JS.
  *
  * The year control only renders for the movie and TV types — the blended "all"
  * search and the people search take no year. `page` is intentionally not a field:
@@ -27,15 +27,15 @@ export const SearchFilters = ({
   yearRange: { min: number; max: number };
 }) => {
   const showYear = filters.type === "movie" || filters.type === "tv";
-  const years: number[] = [];
-  for (let year = yearRange.max; year >= yearRange.min; year--) years.push(year);
 
-  // Auto-submit on change when JS is available; harmless no-op without it.
-  const submit = (event: { currentTarget: { form: HTMLFormElement | null } }) =>
-    event.currentTarget.form?.requestSubmit();
+  const typeOptions: SelectOption[] = (Object.keys(TYPE_LABELS) as SearchType[]).map((type) => ({
+    value: type,
+    label: TYPE_LABELS[type],
+  }));
 
-  const selectClass =
-    "rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-white/25 focus:bg-white/10";
+  const yearOptions: SelectOption[] = [{ value: "", label: "Any year" }];
+  for (let year = yearRange.max; year >= yearRange.min; year--)
+    yearOptions.push({ value: String(year), label: String(year) });
 
   return (
     <form
@@ -46,34 +46,22 @@ export const SearchFilters = ({
     >
       <input type="hidden" name="q" value={filters.query} readOnly />
 
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-        Type
-        <select name="type" defaultValue={filters.type} onChange={submit} className={selectClass}>
-          {(Object.keys(TYPE_LABELS) as SearchType[]).map((type) => (
-            <option key={type} value={type}>
-              {TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        name="type"
+        label="Type"
+        options={typeOptions}
+        defaultValue={filters.type}
+        submitOnChange
+      />
 
       {showYear ? (
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
-          Year
-          <select
-            name="year"
-            defaultValue={filters.year ?? ""}
-            onChange={submit}
-            className={selectClass}
-          >
-            <option value="">Any year</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          name="year"
+          label="Year"
+          options={yearOptions}
+          defaultValue={filters.year != null ? String(filters.year) : ""}
+          submitOnChange
+        />
       ) : null}
 
       <button
