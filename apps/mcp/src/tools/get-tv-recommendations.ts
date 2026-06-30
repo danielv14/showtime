@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { defineTool, paginatedResult, failWith } from "./define-tool.js";
+import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbTvResult } from "@showtime/core";
-import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
+import { resolveMedia } from "./helpers/resolvers.js";
 import { pageParam } from "./helpers/params.js";
 
 export const getTvRecommendationsTool = defineTool({
@@ -15,12 +15,6 @@ export const getTvRecommendationsTool = defineTool({
     page: pageParam,
   },
   handler: async ({ tmdbId, title, page }, clients) => {
-    const guardError = requireAtLeastOne("getting TV recommendations", {
-      tmdbId,
-      title,
-    });
-    if (guardError) return failWith(guardError);
-
     const media = await resolveMedia(clients, { mediaType: "tv", tmdbId, title });
     const { id: tvId, name: sourceShowTitle } = media;
 
