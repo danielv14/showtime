@@ -13,14 +13,15 @@ See the root `CLAUDE.md` for monorepo-wide toolchain and commands.
   - `shaper.ts` — pure shaping module. Maps core's `Tmdb*`/`Omdb*` responses into the UI-facing shapes (`MediaItem`, `PersonItem`, `MediaDetail`, `PersonDetail`, etc.) that components consume. Never fetches, caches, or reads secrets, so it stays unit-testable without a network or KV.
   - `cache.ts` — `cached()`, a read-through cache over the `CACHE` KV namespace, plus `TTL` constants. Keeps the app under OMDB's daily rate limit; a degraded payload (a failed sub-fetch) gets a short TTL so partial data is not frozen for the full window.
   - `browse.ts` — pure browse-filter module: parses/normalises URL search params into a canonical `BrowseFilters` object and maps it onto TMDB discover options. The single source of truth for what a browse URL means.
-- `src/components/` — presentational React components (`MediaCard`, `MediaRow`, `MediaGrid`, `DetailView`, `PersonView`, `BrowseView`, `Pagination`, `WhereToWatch`, `ErrorView`, ...).
+- `src/components/` — presentational React components, grouped by feature/domain into subfolders: `layout/` (shell: Header, Footer), `media/` (shared cards/grids: MediaCard, MediaGrid, MediaRow, PersonCard), `detail/` (movie/TV detail page: DetailView, DetailHero, CastList, Reviews, WhereToWatch, TrailerPlayer, EpisodeRatings, plus a `season-episodes/` subfolder), `person/`, `collection/`, `browse/`, `search/`, and `ui/` (generic primitives: Select, Pagination, ErrorView, NotFound). Tests are co-located (`*.test.tsx`) beside the component they cover.
+- `src/lib/` — pure, framework-agnostic helpers, each with a co-located `*.test.ts`: `slug.ts` (URL slugs), `seo.ts`, `date.ts` (date/lifespan formatting), `youtube.ts` (trailer URL parsing), `ratings.ts` (episode heatmap colours), `year-options.ts` (filter year dropdowns).
 - `src/router.tsx`, `src/styles.css` — router setup and the Tailwind entrypoint. The router wires app-wide boundaries via `defaultErrorComponent: ErrorView` and `defaultNotFoundComponent: NotFound`, so a throwing loader is caught at the failing route. Fonts (Inter for body, Space Grotesk for headings) load from Google Fonts in `__root.tsx` and bind to `--font-sans` / `--font-display` in `styles.css`.
 
 ## Conventions
 
 - Data flow: route `loader` / component → `createServerFn` in `src/server/media.ts` → `cached(...)` over the `CACHE` KV → core client → `shaper.ts` maps the response into a UI shape. Components receive already-shaped data; keep raw `Tmdb*`/`Omdb*` types behind the server layer. `media.ts` orchestrates and caches; it holds no mapping logic itself.
 - All TMDB/OMDB access goes through `@showtime/core`. Components and routes never call the APIs or read API keys directly.
-- Imports use the `#/*` alias for `./src/*`.
+- Imports use the `#/*` alias for `./src/*` (wired via `tsconfig.json` paths, `vite.config.ts` `tsconfigPaths`, and `package.json` `imports`), e.g. `#/server/media`, `#/lib/slug`, `#/components/media/MediaCard`. Same-folder siblings stay relative (`./Foo`).
 - TanStack Router file-based routing: add a route by adding a file under `src/routes/`. Run `vp run generate-routes` (`tsr generate`) if the route tree needs regenerating.
 
 ## Secrets
