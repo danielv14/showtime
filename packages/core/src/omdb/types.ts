@@ -24,7 +24,7 @@ export interface OmdbRating {
   Value: string;
 }
 
-export interface OmdbMovieDetails {
+export interface OmdbBaseDetails {
   Title: string;
   Year: string;
   Rated: string;
@@ -44,64 +44,27 @@ export interface OmdbMovieDetails {
   imdbRating: string;
   imdbVotes: string;
   imdbID: string;
+  Response: "True";
+}
+
+export interface OmdbMovieDetails extends OmdbBaseDetails {
   Type: "movie";
   DVD?: string;
   BoxOffice?: string;
   Production?: string;
   Website?: string;
-  Response: "True";
 }
 
-export interface OmdbSeriesDetails {
-  Title: string;
-  Year: string;
-  Rated: string;
-  Released: string;
-  Runtime: string;
-  Genre: string;
-  Director: string;
-  Writer: string;
-  Actors: string;
-  Plot: string;
-  Language: string;
-  Country: string;
-  Awards: string;
-  Poster: string;
-  Ratings: OmdbRating[];
-  Metascore: string;
-  imdbRating: string;
-  imdbVotes: string;
-  imdbID: string;
+export interface OmdbSeriesDetails extends OmdbBaseDetails {
   Type: "series";
   totalSeasons: string;
-  Response: "True";
 }
 
-export interface OmdbEpisodeDetails {
-  Title: string;
-  Year: string;
-  Rated: string;
-  Released: string;
+export interface OmdbEpisodeDetails extends OmdbBaseDetails {
+  Type: "episode";
   Season: string;
   Episode: string;
-  Runtime: string;
-  Genre: string;
-  Director: string;
-  Writer: string;
-  Actors: string;
-  Plot: string;
-  Language: string;
-  Country: string;
-  Awards: string;
-  Poster: string;
-  Ratings: OmdbRating[];
-  Metascore: string;
-  imdbRating: string;
-  imdbVotes: string;
-  imdbID: string;
-  Type: "episode";
   seriesID: string;
-  Response: "True";
 }
 
 export interface OmdbSeasonEpisode {
