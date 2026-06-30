@@ -5,6 +5,7 @@ import {
   type TmdbSearchResponse,
 } from "@showtime/core";
 import { fromMovie, fromMulti, fromPerson, fromTv, type SearchItem } from "./shaper";
+import { normalizePage, normalizeYear, YEAR_FLOOR } from "./url-params";
 
 /**
  * The search module: the single source of truth for "what does this search URL
@@ -52,42 +53,16 @@ export interface SearchSearch {
   page?: number;
 }
 
-/** Earliest plausible release year; anything older is a stale/typo'd param. */
-const MIN_YEAR = 1874;
-/** How far past the current year a year filter may reach (announced future titles). */
-const FUTURE_YEAR_SLACK = 5;
-
 /** TMDB caps pagination at 500 pages, so normalisation never asks for a page upstream refuses. */
 export const MAX_SEARCH_PAGE = TMDB_MAX_PAGES;
 
-/** Earliest year offered in the search year control (older links still resolve via `MIN_YEAR`). */
-export const SEARCH_YEAR_FLOOR = 1950;
-
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
+/** Earliest year offered in the search year control (older links still resolve via the normaliser's floor). */
+export const SEARCH_YEAR_FLOOR = YEAR_FLOOR;
 
 const normalizeQuery = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
 const normalizeType = (value: unknown): SearchType =>
   SEARCH_TYPES.includes(value as SearchType) ? (value as SearchType) : DEFAULT_TYPE;
-
-const normalizeYear = (value: unknown, currentYear: number): number | null => {
-  const year = toFiniteNumber(value);
-  if (year === null || !Number.isInteger(year)) return null;
-  return year >= MIN_YEAR && year <= currentYear + FUTURE_YEAR_SLACK ? year : null;
-};
-
-const normalizePage = (value: unknown): number => {
-  const page = toFiniteNumber(value);
-  if (page === null || page < 1) return 1;
-  return Math.min(Math.floor(page), MAX_SEARCH_PAGE);
-};
 
 /**
  * Resolve any raw search record (typed search, hand-edited URL, stale link) into
@@ -110,7 +85,7 @@ export const normalizeSearchFilters = (
     query: normalizeQuery(search.q),
     type,
     year: yearApplies ? normalizeYear(search.year, currentYear) : null,
-    page: normalizePage(search.page),
+    page: normalizePage(search.page, MAX_SEARCH_PAGE),
   };
 };
 
