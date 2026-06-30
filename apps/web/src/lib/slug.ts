@@ -53,3 +53,10 @@ export const toPersonSlug = ({ id, name }: { id: number; name?: string | null })
 
 /** Extract the TMDB person id from a person slug. */
 export const parsePersonId = (slug: string): number | null => parseTrailingId(slug);
+
+/** Build the URL segment for a collection: `the-matrix-collection-2344`. */
+export const toCollectionSlug = ({ id, name }: { id: number; name?: string | null }): string =>
+  toSlug(id, name);
+
+/** Extract the TMDB collection id from a collection slug. */
+export const parseCollectionId = (slug: string): number | null => parseTrailingId(slug);

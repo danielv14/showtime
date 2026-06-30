@@ -54,3 +54,20 @@ describe("DetailView genre tags", () => {
     expect(href).toContain("genre=18");
   });
 });
+
+describe("DetailView collection entry", () => {
+  it("links to the collection page when the movie belongs to one", async () => {
+    await renderWithRouter(
+      <DetailView detail={detail({ collection: { id: 2344, name: "The Matrix Collection" } })} />,
+    );
+
+    const link = screen.getByRole("link", { name: /Part of The Matrix Collection/ });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("/collection/the-matrix-collection-2344");
+  });
+
+  it("renders no collection entry for a standalone movie", async () => {
+    await renderWithRouter(<DetailView detail={detail({ collection: null })} />);
+    expect(screen.queryByText(/Part of/)).toBeNull();
+  });
+});

@@ -20,6 +20,7 @@ import {
   type TmdbPersonDetails,
   type TmdbPersonCombinedCredits,
   type TmdbCombinedCredit,
+  type TmdbCollectionDetails,
   type OmdbMovieDetails,
   type OmdbSeriesDetails,
   type OmdbSeasonResponse,
@@ -118,6 +119,16 @@ export interface Review {
   url: string;
 }
 
+/**
+ * The collection (franchise) a movie belongs to, carried on its detail so the
+ * page can link to the collection route. Just id + name; the route fetches the
+ * full collection separately.
+ */
+export interface CollectionSummary {
+  id: number;
+  name: string;
+}
+
 export interface MediaDetail {
   id: number;
   mediaType: "movie" | "tv";
@@ -142,6 +153,11 @@ export interface MediaDetail {
   similar: MediaItem[];
   reviews: Review[];
   imdbId?: string;
+  /**
+   * The franchise this movie belongs to, when any. Null for standalone movies
+   * and for TV, so the detail page can omit the entry without a layout break.
+   */
+  collection?: CollectionSummary | null;
   // TV-only extras
   seasons?: number;
   episodes?: number;
@@ -203,6 +219,20 @@ export interface PersonDetail {
   imdbId: string | null;
   knownFor: PersonCredit[];
   filmography: FilmographySection[];
+}
+
+/**
+ * UI shape for a collection (franchise) page: the franchise header plus its
+ * movies in release order. `parts` reuses `MediaItem` so they render with the
+ * existing `MediaCard` / `MediaGrid` and link to each movie's detail page.
+ */
+export interface CollectionDetail {
+  id: number;
+  name: string;
+  overview: string;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  parts: MediaItem[];
 }
 
 // ----- mappers ----------------------------------------------------------------
@@ -439,6 +469,9 @@ export const shapeMovie = (
   imdbId,
   similar,
   reviews,
+  collection: d.belongs_to_collection
+    ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name }
+    : null,
 });
 
 export const shapeTv = (
@@ -480,6 +513,32 @@ export const shapeTv = (
   similar,
   reviews,
 });
+
+/**
+ * Shape a TMDB collection into the collection-page UI shape. Maps the franchise
+ * header and orders `parts` by release date ascending (earliest first) so the
+ * films read in release order. Entries with no release date sort to the bottom
+ * rather than to 1970, and the order is otherwise stable.
+ */
+export const shapeCollection = (d: TmdbCollectionDetails): CollectionDetail => {
+  // Sort on the raw release_date (full date, not just the year) so films from
+  // the same year keep their true order; undated entries sort to the bottom.
+  const parts = [...d.parts]
+    .sort((a, b) => {
+      if (!a.release_date) return 1;
+      if (!b.release_date) return -1;
+      return a.release_date.localeCompare(b.release_date);
+    })
+    .map(fromMovie);
+  return {
+    id: d.id,
+    name: d.name,
+    overview: d.overview ?? "",
+    posterUrl: img(d.poster_path, "w500"),
+    backdropUrl: img(d.backdrop_path, "w1280"),
+    parts,
+  };
+};
 
 // ----- person shaping ---------------------------------------------------------
 

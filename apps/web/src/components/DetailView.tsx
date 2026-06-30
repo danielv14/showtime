@@ -1,8 +1,8 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, Play } from "lucide-react";
+import { ExternalLink, Layers, Play } from "lucide-react";
 import type { CreditName, EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
-import { toPersonSlug } from "../lib/slug";
+import { toCollectionSlug, toPersonSlug } from "../lib/slug";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
@@ -151,6 +151,17 @@ export const DetailView = ({
 
             {detail.awards ? (
               <p className="mt-3 text-sm text-amber-200/80">🏆 {detail.awards}</p>
+            ) : null}
+
+            {detail.collection ? (
+              <Link
+                to="/collection/$slug"
+                params={{ slug: toCollectionSlug(detail.collection) }}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-sm text-zinc-300 no-underline transition hover:border-white/25 hover:text-white"
+              >
+                <Layers className="h-4 w-4 text-zinc-500" />
+                Part of {detail.collection.name}
+              </Link>
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
