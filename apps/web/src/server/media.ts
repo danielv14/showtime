@@ -23,11 +23,13 @@ import {
   fromTv,
   mapOmdbRatings,
   rankSimilar,
+  shapeCollection,
   shapeEpisodeRatings,
   shapeMovie,
   shapePerson,
   shapeReviews,
   shapeTv,
+  type CollectionDetail,
   type EpisodeRatingsData,
   type MediaDetail,
   type MediaItem,
@@ -39,6 +41,8 @@ import {
 // component imports (`from "../server/media"`) keep working unchanged.
 export type {
   CastMember,
+  CollectionDetail,
+  CollectionSummary,
   CreditName,
   EpisodeRating,
   EpisodeRatingsData,
@@ -222,6 +226,20 @@ export const getMovieDetail = createServerFn({ method: "GET" })
       { isDegraded: () => omdbFailed },
     );
   });
+
+export const getCollectionDetail = createServerFn({ method: "GET" })
+  .validator((id: number) => id)
+  .handler(
+    async ({ data: id }): Promise<CollectionDetail> =>
+      // A franchise's part list changes rarely (only when a new film is added),
+      // so the day-level TTL the other detail functions use fits here. Keyed per
+      // collection id.
+      cached(`collection-detail:${id}`, TTL.day, async () => {
+        const tmdb = getTmdb();
+        const collection = await tmdb.getCollection(id);
+        return shapeCollection(collection);
+      }),
+  );
 
 export const getTvDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)

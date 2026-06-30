@@ -7,6 +7,8 @@ import type {
   TmdbPersonDetails,
   TmdbReview,
   TmdbReviewsResponse,
+  TmdbMovieDetails,
+  TmdbCollectionDetails,
   OmdbMovieDetails,
   OmdbSeasonResponse,
 } from "@showtime/core";
@@ -15,7 +17,9 @@ import {
   mapOmdbRatings,
   mapProviders,
   rankSimilar,
+  shapeCollection,
   shapeEpisodeRatings,
+  shapeMovie,
   shapePerson,
   shapeReviews,
   shapeTv,
@@ -560,5 +564,110 @@ describe("shapeReviews", () => {
     const result = shapeReviews(response([tmdbReview({ content: "x".repeat(2000) })]));
 
     expect(result[0].content.length).toBeLessThan(2000);
+  });
+});
+
+describe("shapeMovie collection", () => {
+  const movieDetails = (
+    belongsToCollection: TmdbMovieDetails["belongs_to_collection"],
+  ): TmdbMovieDetails =>
+    ({
+      id: 603,
+      title: "The Matrix",
+      tagline: "",
+      release_date: "1999-03-30",
+      overview: "",
+      runtime: 136,
+      genres: [],
+      poster_path: null,
+      backdrop_path: null,
+      vote_average: 8,
+      vote_count: 100,
+      status: "Released",
+      belongs_to_collection: belongsToCollection,
+    }) as unknown as TmdbMovieDetails;
+
+  const shape = (belongsToCollection: TmdbMovieDetails["belongs_to_collection"]) =>
+    shapeMovie(movieDetails(belongsToCollection), null, null, null, [], null, undefined, [], []);
+
+  it("carries the collection summary when the movie belongs to one", () => {
+    const result = shape({
+      id: 2344,
+      name: "The Matrix Collection",
+      poster_path: null,
+      backdrop_path: null,
+    });
+    expect(result.collection).toEqual({ id: 2344, name: "The Matrix Collection" });
+  });
+
+  it("is null for a standalone movie", () => {
+    expect(shape(null).collection).toBeNull();
+  });
+});
+
+describe("shapeCollection", () => {
+  const part = (overrides: Partial<TmdbCollectionDetails["parts"][number]>) =>
+    ({
+      id: 1,
+      title: "Untitled",
+      original_title: "Untitled",
+      overview: "",
+      release_date: "2000-01-01",
+      poster_path: "/p.jpg",
+      backdrop_path: null,
+      vote_average: 7,
+      vote_count: 100,
+      genre_ids: [],
+      adult: false,
+      ...overrides,
+    }) as TmdbCollectionDetails["parts"][number];
+
+  const collection = (overrides: Partial<TmdbCollectionDetails> = {}): TmdbCollectionDetails => ({
+    id: 2344,
+    name: "The Matrix Collection",
+    overview: "The films.",
+    poster_path: "/c.jpg",
+    backdrop_path: "/b.jpg",
+    parts: [],
+    ...overrides,
+  });
+
+  it("maps the franchise header and builds image URLs", () => {
+    const result = shapeCollection(collection());
+    expect(result.id).toBe(2344);
+    expect(result.name).toBe("The Matrix Collection");
+    expect(result.overview).toBe("The films.");
+    expect(result.posterUrl).toContain("/c.jpg");
+    expect(result.backdropUrl).toContain("/b.jpg");
+  });
+
+  it("orders parts by release date ascending", () => {
+    const result = shapeCollection(
+      collection({
+        parts: [
+          part({ id: 3, title: "Revolutions", release_date: "2003-11-05" }),
+          part({ id: 1, title: "The Matrix", release_date: "1999-03-30" }),
+          part({ id: 2, title: "Reloaded", release_date: "2003-05-15" }),
+        ],
+      }),
+    );
+    expect(result.parts.map((p) => p.title)).toEqual(["The Matrix", "Reloaded", "Revolutions"]);
+    expect(result.parts.every((p) => p.mediaType === "movie")).toBe(true);
+  });
+
+  it("sorts undated parts to the bottom", () => {
+    const result = shapeCollection(
+      collection({
+        parts: [
+          part({ id: 9, title: "Announced", release_date: "" }),
+          part({ id: 1, title: "First", release_date: "1999-03-30" }),
+        ],
+      }),
+    );
+    expect(result.parts.map((p) => p.title)).toEqual(["First", "Announced"]);
+  });
+
+  it("handles an empty collection", () => {
+    expect(shapeCollection(collection({ parts: [] })).parts).toEqual([]);
   });
 });
