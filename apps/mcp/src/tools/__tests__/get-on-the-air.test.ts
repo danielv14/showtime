@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import type { TmdbSearchResponse, TmdbTvSearchResult } from "@showtime/core";
 import { getOnTheAirTool } from "../get-on-the-air.js";
-import { createFakeClients, fakeGetImageUrl } from "./fake-clients.js";
+import { registerTestTool, parseSuccess, createFakeClients } from "./harness.js";
 
 const onTheAirShow: TmdbTvSearchResult = {
   id: 1399,
@@ -29,22 +29,21 @@ const buildResponse = (
 describe("get_on_the_air tool", () => {
   it("returns currently on-the-air series shaped with pagination metadata", async () => {
     const getOnTheAirTv = vi.fn(async () => buildResponse([onTheAirShow]));
-    const clients = createFakeClients({
-      tmdb: { getOnTheAirTv, getImageUrl: fakeGetImageUrl },
-    });
+    const tool = registerTestTool(getOnTheAirTool, createFakeClients({ tmdb: { getOnTheAirTv } }));
 
-    // paginatedResult is an opaque brand; assert the data it carries.
-    const result = (await getOnTheAirTool.handler({}, clients)) as {
-      apiResponse: TmdbSearchResponse<TmdbTvSearchResult>;
-      data: { results: Array<{ tmdbId: number; name: string; voteCount: number }> };
+    const payload = parseSuccess(await tool.invoke({})) as {
+      page: number;
+      totalPages: number;
+      totalResults: number;
+      results: Array<{ tmdbId: number; name: string; voteCount: number }>;
     };
 
     expect(getOnTheAirTv).toHaveBeenCalledWith({ page: undefined });
-    expect(result.apiResponse.total_results).toBe(100);
-    expect(result.apiResponse.page).toBe(1);
-    expect(result.apiResponse.total_pages).toBe(5);
-    expect(result.data.results).toHaveLength(1);
-    expect(result.data.results[0]).toMatchObject({
+    expect(payload.totalResults).toBe(100);
+    expect(payload.page).toBe(1);
+    expect(payload.totalPages).toBe(5);
+    expect(payload.results).toHaveLength(1);
+    expect(payload.results[0]).toMatchObject({
       tmdbId: 1399,
       name: "Game of Thrones",
       voteCount: 21000,
@@ -53,25 +52,19 @@ describe("get_on_the_air tool", () => {
 
   it("forwards the requested page to the client", async () => {
     const getOnTheAirTv = vi.fn(async () => buildResponse([], 3));
-    const clients = createFakeClients({
-      tmdb: { getOnTheAirTv, getImageUrl: fakeGetImageUrl },
-    });
+    const tool = registerTestTool(getOnTheAirTool, createFakeClients({ tmdb: { getOnTheAirTv } }));
 
-    await getOnTheAirTool.handler({ page: 3 }, clients);
+    await tool.invoke({ page: 3 });
 
     expect(getOnTheAirTv).toHaveBeenCalledWith({ page: 3 });
   });
 
   it("returns an empty result list when the client has no shows", async () => {
     const getOnTheAirTv = vi.fn(async () => buildResponse([]));
-    const clients = createFakeClients({
-      tmdb: { getOnTheAirTv, getImageUrl: fakeGetImageUrl },
-    });
+    const tool = registerTestTool(getOnTheAirTool, createFakeClients({ tmdb: { getOnTheAirTv } }));
 
-    const result = (await getOnTheAirTool.handler({}, clients)) as {
-      data: { results: unknown[] };
-    };
+    const payload = parseSuccess(await tool.invoke({})) as { results: unknown[] };
 
-    expect(result.data.results).toEqual([]);
+    expect(payload.results).toEqual([]);
   });
 });
