@@ -216,11 +216,11 @@ export const getMovieDetail = createServerFn({ method: "GET" })
         ]);
         const omdbData = details.imdb_id
           ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
-              // A definitive OMDB "not found" (OmdbApiError) is permanent, so
-              // caching it for the full day is correct and not worth surfacing.
-              // Only a transient failure (network/timeout/5xx) should shorten the
-              // cache, and it is logged so it is visible in Workers Logs.
-              if (error instanceof OmdbApiError) return null;
+              // A definitive OMDB "not found" is permanent, so caching the empty
+              // result for the full day is correct and not worth surfacing. Any
+              // other failure (a transient OMDB outage, or an unexpected error)
+              // shortens the cache and is logged so it is visible in Workers Logs.
+              if (error instanceof OmdbApiError && error.kind === "not_found") return null;
               omdbFailed = true;
               return logUpstreamFailure("omdb.getById", { imdbId: details.imdb_id })(error);
             })) as OmdbMovieDetails | null)
@@ -302,10 +302,11 @@ export const getTvDetail = createServerFn({ method: "GET" })
           })
           .catch((error) => {
             // Title+year lookups legitimately miss for series OMDB does not have,
-            // raising OmdbApiError. That is permanent, not transient, so it must
-            // not shorten the cache or be logged; only flag and surface genuine
-            // transient failures.
-            if (error instanceof OmdbApiError) return null;
+            // raising a `not_found` OmdbApiError. That is permanent, so it must
+            // not shorten the cache or be logged. A transient OMDB failure (or an
+            // unexpected error) flags the payload as degraded and is logged so it
+            // is visible in Workers Logs.
+            if (error instanceof OmdbApiError && error.kind === "not_found") return null;
             omdbFailed = true;
             return logUpstreamFailure("omdb.getByTitle", { title: details.name, year })(error);
           })) as OmdbSeriesDetails | null;
