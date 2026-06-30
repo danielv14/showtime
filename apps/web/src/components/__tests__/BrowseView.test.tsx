@@ -52,7 +52,7 @@ describe("BrowseView", () => {
   });
 
   it("reflects the active selections in the filter controls", async () => {
-    await renderWithRouter(
+    const { container } = await renderWithRouter(
       <BrowseView
         to="/movies"
         heading="Movies"
@@ -65,12 +65,14 @@ describe("BrowseView", () => {
       />,
     );
 
+    // Each `Select` submits its value through a hidden input under its `name`,
+    // which is what the GET form turns into the shareable URL params.
     const value = (name: string) =>
-      (screen.getByRole("combobox", { name }) as unknown as HTMLSelectElement).value;
-    expect(value("Genre")).toBe("28");
-    expect(value("Min rating")).toBe("7");
-    expect(value("Year")).toBe("2023");
-    expect(value("Sort by")).toBe("rating");
+      container.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value;
+    expect(value("genre")).toBe("28");
+    expect(value("rating")).toBe("7");
+    expect(value("year")).toBe("2023");
+    expect(value("sort")).toBe("rating");
   });
 
   it("shows an empty state when there are no results", async () => {

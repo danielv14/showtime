@@ -39,7 +39,7 @@ const yearRange = { min: 1950, max: 2027 };
 
 describe("SearchView", () => {
   it("reflects the active type and year in the filter controls", async () => {
-    await renderWithRouter(
+    const { container } = await renderWithRouter(
       <SearchView
         query="matrix"
         results={[mediaItem({})]}
@@ -50,14 +50,16 @@ describe("SearchView", () => {
       />,
     );
 
+    // Each `Select` submits its value through a hidden input under its `name`,
+    // which is what the GET form turns into the shareable URL params.
     const value = (name: string) =>
-      (screen.getByRole("combobox", { name }) as unknown as HTMLSelectElement).value;
-    expect(value("Type")).toBe("movie");
-    expect(value("Year")).toBe("1999");
+      container.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value;
+    expect(value("type")).toBe("movie");
+    expect(value("year")).toBe("1999");
   });
 
   it("hides the year control for the blended 'all' search", async () => {
-    await renderWithRouter(
+    const { container } = await renderWithRouter(
       <SearchView
         query="matrix"
         results={[mediaItem({})]}
@@ -68,8 +70,8 @@ describe("SearchView", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Type" })).toBeTruthy();
-    expect(screen.queryByRole("combobox", { name: "Year" })).toBeNull();
+    expect(container.querySelector('input[name="type"]')).toBeTruthy();
+    expect(container.querySelector('input[name="year"]')).toBeNull();
   });
 
   it("renders only the media grid when narrowed to movies", async () => {
@@ -141,7 +143,7 @@ describe("SearchView", () => {
   });
 
   it("prompts to search instead of running an empty query", async () => {
-    await renderWithRouter(
+    const { container } = await renderWithRouter(
       <SearchView
         query=""
         results={[]}
@@ -154,6 +156,6 @@ describe("SearchView", () => {
 
     expect(screen.getByText("Search for a movie, show, or person.")).toBeTruthy();
     // With no query there is nothing to filter, so the controls are not shown.
-    expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
+    expect(container.querySelector('input[name="type"]')).toBeNull();
   });
 });
