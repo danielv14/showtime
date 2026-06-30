@@ -6,6 +6,7 @@ import type {
 } from "@showtime/core";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult, formatTmdbTvResult } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 const formatMultiSearchResult = (
   result: TmdbMultiSearchResult,
@@ -50,7 +51,7 @@ export const multiSearchTool = defineTool({
     "Search for movies, TV shows, and people in a single request. Great for general queries when you don't know the exact type of content.",
   schema: {
     query: z.string().describe("Search query (movie title, TV show name, or person name)"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ query, page }, { tmdb }) => {
     const result = await tmdb.multiSearch(query, { page });

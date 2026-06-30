@@ -117,3 +117,27 @@ export const resolveMedia = async (
   const movie = await resolveMovieRef(clients.tmdb, { tmdbId, imdbId, title });
   return { type: "movie", id: movie.id, name: movie.title };
 };
+
+/**
+ * Resolve a movie or TV series from a `movieId`/`tvId` pair into a uniform
+ * {@link ResolvedMedia}. These tools' identifiers are movieId/tvId, so this
+ * owns the guard with their names rather than relying on resolveMedia's
+ * tmdbId/imdbId/title message. Throws on failure.
+ */
+export const resolveMovieOrTv = async (
+  clients: ToolClients,
+  input: { movieId?: number; tvId?: number },
+): Promise<ResolvedMedia> => {
+  const { movieId, tvId } = input;
+
+  if (movieId === undefined && tvId === undefined) {
+    throw new Error(atLeastOneMessage(["movieId", "tvId"]));
+  }
+
+  return resolveMedia(
+    clients,
+    movieId !== undefined
+      ? { mediaType: "movie", tmdbId: movieId }
+      : { mediaType: "tv", tmdbId: tvId },
+  );
+};

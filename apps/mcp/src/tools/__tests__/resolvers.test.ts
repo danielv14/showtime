@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vite-plus/test";
-import { atLeastOneMessage, requireAtLeastOne, resolveMedia } from "../helpers/resolvers.js";
+import {
+  atLeastOneMessage,
+  requireAtLeastOne,
+  resolveMedia,
+  resolveMovieOrTv,
+} from "../helpers/resolvers.js";
 import { createFakeClients, createFakeTmdbClient, createFakeOmdbClient } from "./harness.js";
 
 describe("requireAtLeastOne", () => {
@@ -98,6 +103,46 @@ describe("resolveMedia", () => {
     await expect(resolveMedia(clients, { title: "Nonexistent" })).rejects.toThrow(
       "No movies found matching title: Nonexistent",
     );
+  });
+});
+
+describe("resolveMovieOrTv", () => {
+  it("throws the movieId/tvId guard message when neither id is given", async () => {
+    const clients = createFakeClients({});
+
+    await expect(resolveMovieOrTv(clients, {})).rejects.toThrow(
+      atLeastOneMessage(["movieId", "tvId"]),
+    );
+  });
+
+  it("resolves a movie when movieId is given", async () => {
+    const clients = createFakeClients({
+      tmdb: {
+        getMovieDetails: async (id: number) =>
+          ({ id, title: "Dune" }) as Awaited<
+            ReturnType<import("@showtime/core").TmdbClient["getMovieDetails"]>
+          >,
+      },
+    });
+
+    const media = await resolveMovieOrTv(clients, { movieId: 438631 });
+
+    expect(media).toEqual({ type: "movie", id: 438631, name: "Dune" });
+  });
+
+  it("resolves a TV series when tvId is given", async () => {
+    const clients = createFakeClients({
+      tmdb: {
+        getTvDetails: async (id: number) =>
+          ({ id, name: "Breaking Bad" }) as Awaited<
+            ReturnType<import("@showtime/core").TmdbClient["getTvDetails"]>
+          >,
+      },
+    });
+
+    const media = await resolveMovieOrTv(clients, { tvId: 1396 });
+
+    expect(media).toEqual({ type: "tv", id: 1396, name: "Breaking Bad" });
   });
 });
 

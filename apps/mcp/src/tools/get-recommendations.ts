@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { defineTool, paginatedResult, failWith } from "./define-tool.js";
+import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult } from "@showtime/core";
-import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
+import { resolveMedia } from "./helpers/resolvers.js";
+import { pageParam } from "./helpers/params.js";
 
 export const getMovieRecommendationsTool = defineTool({
   name: "get_movie_recommendations",
@@ -11,15 +12,9 @@ export const getMovieRecommendationsTool = defineTool({
   schema: {
     tmdbId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
     title: z.string().optional().describe("Movie title to get recommendations for"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ tmdbId, title, page }, clients) => {
-    const guardError = requireAtLeastOne("getting movie recommendations", {
-      tmdbId,
-      title,
-    });
-    if (guardError) return failWith(guardError);
-
     const media = await resolveMedia(clients, { mediaType: "movie", tmdbId, title });
     const { id: movieId, name: sourceMovieTitle } = media;
 

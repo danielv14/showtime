@@ -1,4 +1,5 @@
 import { TMDB_MAX_PAGES, type DiscoverMoviesOptions, type DiscoverTvOptions } from "@showtime/core";
+import { normalizePage, normalizeYear, toFiniteNumber, YEAR_FLOOR } from "./url-params";
 
 /**
  * Pure browse-filter module: the single source of truth for "what does this
@@ -56,33 +57,14 @@ export interface BrowseSearch {
  */
 export const VOTE_COUNT_FLOOR = 200;
 
-/** Earliest plausible release year (the Lumière brothers era); anything older is a stale/typo'd param. */
-const MIN_YEAR = 1874;
-/** How far past the current year a year filter may reach (announced future titles). */
-const FUTURE_YEAR_SLACK = 5;
-
 const MAX_RATING = 10;
 const MIN_RATING = 1;
 
 /** TMDB caps pagination at 500 pages, so normalisation never asks for a page upstream refuses. */
 export const MAX_BROWSE_PAGE = TMDB_MAX_PAGES;
 
-/**
- * Earliest year offered in the browse year control. Narrower than the
- * normaliser's `MIN_YEAR` floor (which still accepts older hand-edited links);
- * this is just the oldest year worth listing as a dropdown option. Shared by
- * both browse routes so the span is defined once.
- */
-export const BROWSE_YEAR_FLOOR = 1950;
-
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
+/** Earliest year offered in the browse year control (older links still resolve via the normaliser's floor). */
+export const BROWSE_YEAR_FLOOR = YEAR_FLOOR;
 
 const normalizeSort = (value: unknown): BrowseSort =>
   BROWSE_SORTS.includes(value as BrowseSort) ? (value as BrowseSort) : DEFAULT_SORT;
@@ -97,18 +79,6 @@ const normalizeRating = (value: unknown): number | null => {
   const rating = toFiniteNumber(value);
   if (rating === null || rating <= 0) return null;
   return Math.min(Math.max(rating, MIN_RATING), MAX_RATING);
-};
-
-const normalizeYear = (value: unknown, currentYear: number): number | null => {
-  const year = toFiniteNumber(value);
-  if (year === null || !Number.isInteger(year)) return null;
-  return year >= MIN_YEAR && year <= currentYear + FUTURE_YEAR_SLACK ? year : null;
-};
-
-const normalizePage = (value: unknown): number => {
-  const page = toFiniteNumber(value);
-  if (page === null || page < 1) return 1;
-  return Math.min(Math.floor(page), MAX_BROWSE_PAGE);
 };
 
 /**
@@ -127,7 +97,7 @@ export const normalizeBrowseFilters = (
   minRating: normalizeRating(search.rating),
   year: normalizeYear(search.year, currentYear),
   sort: normalizeSort(search.sort),
-  page: normalizePage(search.page),
+  page: normalizePage(search.page, MAX_BROWSE_PAGE),
 });
 
 /**
