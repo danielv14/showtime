@@ -20,6 +20,11 @@ describe("Reviews", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("renders nothing when reviews is undefined (e.g. a stale cached detail)", () => {
+    const { container } = render(<Reviews reviews={undefined} />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it("shows the author and content of each review", () => {
     render(<Reviews reviews={[review({ author: "Ebert", content: "Loved it." })]} />);
 
