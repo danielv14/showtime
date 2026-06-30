@@ -733,9 +733,12 @@ export const shapePerson = (
   for (const c of credits.crew ?? [])
     add(c, (c.department ?? "").trim() || "Crew", (c.job ?? "").trim());
 
+  const departmentSeparator = (department: string): string =>
+    department === DEPT_ACTING ? " / " : ", ";
+
   const filmography: FilmographySection[] = Array.from(byDepartment.entries())
     .map(([department, group]) => {
-      const separator = department === DEPT_ACTING ? " / " : ", ";
+      const separator = departmentSeparator(department);
       const sectionCredits = Array.from(group.values())
         // Newest first; entries with no date ("") sort to the bottom.
         .sort((a, b) => b.date.localeCompare(a.date))
@@ -746,34 +749,25 @@ export const shapePerson = (
 
   // "Known for": most popular titles by vote count, de-duped across cast + crew,
   // limited to ones with a poster so the highlights row stays visually clean.
-  const bestById = new Map<number, { credit: PersonCredit; voteCount: number }>();
-  const consider = (c: TmdbCombinedCredit, role: string): void => {
-    if (!isMovieOrTv(c) || !c.poster_path) return;
-    const voteCount = c.vote_count ?? 0;
-    const existing = bestById.get(c.id);
-    if (existing && existing.voteCount >= voteCount) return;
-    bestById.set(c.id, {
-      voteCount,
-      credit: {
-        id: c.id,
-        mediaType: c.media_type,
-        title: creditTitle(c),
-        year: extractYear(creditDate(c)),
-        rating: c.vote_average ?? 0,
-        posterUrl: img(c.poster_path, POSTER_SIZE),
-        backdropUrl: img(c.backdrop_path, BACKDROP_SIZE),
-        overview: "",
-        role,
-      },
-    });
-  };
-  for (const c of credits.cast ?? []) consider(c, (c.character ?? "").trim());
-  for (const c of credits.crew ?? []) consider(c, (c.job ?? "").trim());
+  // Derived from the accumulators already built above rather than a second
+  // traversal: filmography de-dupes within a department, so flatten across
+  // departments, keep the highest-voted entry per id (departments are inserted
+  // cast-first, so a tie keeps the acting credit), drop poster-less entries.
+  const bestById = new Map<number, CreditAccum & { separator: string }>();
+  for (const [department, group] of byDepartment) {
+    const separator = departmentSeparator(department);
+    for (const accum of group.values()) {
+      if (!accum.posterUrl) continue;
+      const existing = bestById.get(accum.id);
+      if (existing && existing.voteCount >= accum.voteCount) continue;
+      bestById.set(accum.id, { ...accum, separator });
+    }
+  }
 
   const knownFor = Array.from(bestById.values())
     .sort((a, b) => b.voteCount - a.voteCount)
     .slice(0, KNOWN_FOR_LIMIT)
-    .map((entry) => entry.credit);
+    .map((accum) => toPersonCredit(accum, accum.separator));
 
   return {
     id: details.id,
