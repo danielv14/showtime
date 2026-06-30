@@ -45,7 +45,7 @@ describe("createOmdbClient through a fake HttpClient", () => {
     });
   });
 
-  it("translates a wire-level Response: False into OmdbApiError", async () => {
+  it("translates a wire-level Response: False into a not_found OmdbApiError", async () => {
     const fake = createFakeHttpClient(() => ({
       Response: "False",
       Error: "Movie not found!",
@@ -56,9 +56,10 @@ describe("createOmdbClient through a fake HttpClient", () => {
 
     expect(error).toBeInstanceOf(OmdbApiError);
     expect((error as OmdbApiError).message).toBe("Movie not found!");
+    expect((error as OmdbApiError).kind).toBe("not_found");
   });
 
-  it("translates a transport failure into OmdbApiError", async () => {
+  it("translates a transport failure into a transient OmdbApiError", async () => {
     const fake = createFakeHttpClient(failWith(500));
     const client = createOmdbClient("omdb-key", fake);
 
@@ -66,9 +67,10 @@ describe("createOmdbClient through a fake HttpClient", () => {
 
     expect(error).toBeInstanceOf(OmdbApiError);
     expect((error as OmdbApiError).message).toBe("OMDB request failed with status 500");
+    expect((error as OmdbApiError).kind).toBe("transient");
   });
 
-  it("translates a timeout into OmdbApiError", async () => {
+  it("translates a timeout into a transient OmdbApiError", async () => {
     const fake = createFakeHttpClient(failWith(undefined, true));
     const client = createOmdbClient("omdb-key", fake);
 
@@ -76,6 +78,7 @@ describe("createOmdbClient through a fake HttpClient", () => {
 
     expect(error).toBeInstanceOf(OmdbApiError);
     expect((error as OmdbApiError).message).toBe("OMDB request timed out");
+    expect((error as OmdbApiError).kind).toBe("transient");
   });
 
   describe("getAllEpisodes", () => {

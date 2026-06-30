@@ -12,10 +12,23 @@ import type {
 
 const OMDB_BASE_URL = "https://www.omdbapi.com/";
 
+/**
+ * Why an OMDB call failed. `not_found` is OMDB definitively answering that it
+ * has no result for the query (a wire-level `Response: "False"`): a permanent
+ * miss, so consumers can cache it for the full window and stay quiet.
+ * `transient` is an upstream failure where OMDB never gave a real answer
+ * (timeout, 5xx, network, rate limit): worth shortening any cache and surfacing
+ * in logs, since it may recover.
+ */
+export type OmdbErrorKind = "not_found" | "transient";
+
 export class OmdbApiError extends Error {
-  constructor(message: string) {
+  readonly kind: OmdbErrorKind;
+
+  constructor(message: string, kind: OmdbErrorKind) {
     super(message);
     this.name = "OmdbApiError";
+    this.kind = kind;
   }
 }
 
@@ -81,7 +94,9 @@ export const createOmdbClient = (
       "Response" in (response as object) &&
       (response as OmdbErrorResponse).Response === "False"
     ) {
-      throw new OmdbApiError((response as OmdbErrorResponse).Error);
+      // A wire-level `Response: "False"` is OMDB saying it has no result for
+      // this query, so it is a permanent miss rather than a transient fault.
+      throw new OmdbApiError((response as OmdbErrorResponse).Error, "not_found");
     }
     return response as T;
   };
@@ -97,10 +112,13 @@ export const createOmdbClient = (
       return await httpClient.get<T>("", { searchParams });
     } catch (error) {
       if (error instanceof HttpRequestError) {
+        // OMDB never gave a real answer (timeout, 5xx, network, rate limit), so
+        // this is transient and may recover, unlike a wire-level "not found".
         throw new OmdbApiError(
           error.isTimeout
             ? "OMDB request timed out"
             : `OMDB request failed with status ${error.statusCode}`,
+          "transient",
         );
       }
       throw error;
