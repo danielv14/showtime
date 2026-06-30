@@ -24,12 +24,14 @@ import {
   mapOmdbRatings,
   rankSimilar,
   shapeCollection,
+  shapeEpisodeDetail,
   shapeEpisodeRatings,
   shapeMovie,
   shapePerson,
   shapeReviews,
   shapeTv,
   type CollectionDetail,
+  type EpisodeDetail,
   type EpisodeRatingsData,
   type MediaDetail,
   type MediaItem,
@@ -44,6 +46,7 @@ export type {
   CollectionDetail,
   CollectionSummary,
   CreditName,
+  EpisodeDetail,
   EpisodeRating,
   EpisodeRatingsData,
   ExternalRating,
@@ -327,5 +330,30 @@ export const getEpisodeRatings = createServerFn({ method: "GET" })
         const omdb = getOmdb();
         const seasons = await omdb.getAllEpisodes({ seriesId: imdbId });
         return shapeEpisodeRatings(seasons);
+      }),
+  );
+
+/** Args for the on-demand episode-detail fetch: which episode of which series. */
+export interface EpisodeDetailArgs {
+  seriesId: string;
+  season: number;
+  episode: number;
+}
+
+/**
+ * Richer detail (plot, cast) for one episode, fetched on demand when an episode
+ * is opened. The episode list itself is served from the already-streamed
+ * `getEpisodeRatings` data, so this only runs the extra OMDB call when a user
+ * drills into a specific episode. Keyed per series/season/episode and held for
+ * a week, matching the ratings TTL.
+ */
+export const getEpisodeDetail = createServerFn({ method: "GET" })
+  .validator((args: EpisodeDetailArgs) => args)
+  .handler(
+    async ({ data: { seriesId, season, episode } }): Promise<EpisodeDetail> =>
+      cached(`episode:${seriesId}:${season}:${episode}`, TTL.week, async () => {
+        const omdb = getOmdb();
+        const details = await omdb.getEpisode({ seriesId, season, episode });
+        return shapeEpisodeDetail(details);
       }),
   );

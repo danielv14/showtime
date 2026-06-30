@@ -5,8 +5,10 @@ import {
   extractYear,
   formatReview,
   formatWatchProviders,
+  NA,
   selectProviderRegion,
   selectTrailerUrl,
+  type OmdbEpisodeDetails,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -188,6 +190,22 @@ export interface EpisodeRatingsData {
   seasons: SeasonRatings[];
   /** Highest episode number across all seasons; drives the heatmap's episode axis. */
   maxEpisodes: number;
+}
+
+/**
+ * Richer per-episode detail, loaded on demand when an episode is opened. The
+ * list of episodes (number, title, air date, IMDb rating) is already streamed
+ * with the ratings data, so this carries only the extra fields that fetch buys:
+ * the plot synopsis and the billed cast.
+ */
+export interface EpisodeDetail {
+  season: number;
+  episode: number;
+  title: string;
+  airDate: string | null;
+  rating: number | null;
+  plot: string | null;
+  cast: string[];
 }
 
 /**
@@ -734,4 +752,29 @@ export const shapeEpisodeRatings = (seasons: OmdbSeasonResponse[]): EpisodeRatin
   );
 
   return { seasons: shaped, maxEpisodes };
+};
+
+/** OMDB returns "N/A" or "" for fields it lacks; collapse both to a clean null. */
+const cleanText = (value: string | undefined): string | null => {
+  const trimmed = (value ?? "").trim();
+  return trimmed && trimmed !== NA ? trimmed : null;
+};
+
+/** Shape an OMDB episode response into the on-demand episode-detail UI shape. */
+export const shapeEpisodeDetail = (omdb: OmdbEpisodeDetails): EpisodeDetail => {
+  const cast = cleanText(omdb.Actors);
+  return {
+    season: Number.parseInt(omdb.Season, 10),
+    episode: Number.parseInt(omdb.Episode, 10),
+    title: omdb.Title,
+    airDate: cleanText(omdb.Released),
+    rating: parseRating(omdb.imdbRating),
+    plot: cleanText(omdb.Plot),
+    cast: cast
+      ? cast
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean)
+      : [],
+  };
 };

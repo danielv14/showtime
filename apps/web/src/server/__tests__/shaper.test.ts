@@ -11,6 +11,7 @@ import type {
   TmdbCollectionDetails,
   OmdbMovieDetails,
   OmdbSeasonResponse,
+  OmdbEpisodeDetails,
 } from "@showtime/core";
 import {
   firstTrailerUrl,
@@ -18,6 +19,7 @@ import {
   mapProviders,
   rankSimilar,
   shapeCollection,
+  shapeEpisodeDetail,
   shapeEpisodeRatings,
   shapeMovie,
   shapePerson,
@@ -166,6 +168,57 @@ describe("shapeEpisodeRatings", () => {
     const result = shapeEpisodeRatings(seasons);
     expect(result.seasons).toHaveLength(0);
     expect(result.maxEpisodes).toBe(0);
+  });
+});
+
+describe("shapeEpisodeDetail", () => {
+  const episode = (overrides: Partial<OmdbEpisodeDetails> = {}): OmdbEpisodeDetails => ({
+    Title: "Pilot",
+    Year: "2008",
+    Rated: "TV-14",
+    Released: "20 Jan 2008",
+    Season: "1",
+    Episode: "1",
+    Runtime: "58 min",
+    Genre: "Crime, Drama, Thriller",
+    Director: "Vince Gilligan",
+    Writer: "Vince Gilligan",
+    Actors: "Bryan Cranston, Aaron Paul, Anna Gunn",
+    Plot: "A chemistry teacher starts cooking meth.",
+    Language: "English",
+    Country: "United States",
+    Awards: "N/A",
+    Poster: "https://example.com/poster.jpg",
+    Ratings: [],
+    Metascore: "N/A",
+    imdbRating: "8.9",
+    imdbVotes: "1000",
+    imdbID: "tt0959621",
+    Type: "episode",
+    seriesID: "tt0903747",
+    Response: "True",
+    ...overrides,
+  });
+
+  it("maps plot, cast (split into names), rating, air date and numbers", () => {
+    const result = shapeEpisodeDetail(episode());
+    expect(result.season).toBe(1);
+    expect(result.episode).toBe(1);
+    expect(result.title).toBe("Pilot");
+    expect(result.airDate).toBe("20 Jan 2008");
+    expect(result.rating).toBeCloseTo(8.9);
+    expect(result.plot).toBe("A chemistry teacher starts cooking meth.");
+    expect(result.cast).toEqual(["Bryan Cranston", "Aaron Paul", "Anna Gunn"]);
+  });
+
+  it("collapses OMDB 'N/A' and empty fields to clean nulls / empty cast", () => {
+    const result = shapeEpisodeDetail(
+      episode({ Plot: "N/A", Actors: "N/A", Released: "", imdbRating: "N/A" }),
+    );
+    expect(result.plot).toBeNull();
+    expect(result.cast).toEqual([]);
+    expect(result.airDate).toBeNull();
+    expect(result.rating).toBeNull();
   });
 });
 
