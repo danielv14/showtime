@@ -274,87 +274,92 @@ export interface CollectionDetail {
 
 // ----- mappers ----------------------------------------------------------------
 
-export const fromMovie = (m: TmdbMovieSearchResult): MediaItem => ({
-  id: m.id,
-  mediaType: "movie",
-  title: m.title,
-  year: extractYear(m.release_date),
-  rating: m.vote_average,
-  posterUrl: img(m.poster_path, POSTER_SIZE),
-  backdropUrl: img(m.backdrop_path, BACKDROP_SIZE),
-  overview: m.overview ?? "",
+/**
+ * The fields a "movie-or-TV result" carries that `toMediaItem` reads. Movie
+ * results use `title`/`release_date`, TV uses `name`/`first_air_date`, and the
+ * trending/multi results carry both optionally, so the shared shape reads the
+ * union and falls back across them. `TmdbMovieSearchResult`, `TmdbTvSearchResult`,
+ * `TmdbTrendingResult` and the movie/tv branch of `TmdbMultiSearchResult` all
+ * satisfy it structurally.
+ */
+interface MediaResult {
+  id: number;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string;
+}
+
+/**
+ * The shared `MediaItem` builder behind `fromMovie`/`fromTv`/`fromTrending` and
+ * the movie/tv branch of `fromMulti`. `mediaType` is passed by the caller (it is
+ * hardcoded for the per-type builders, derived for trending/multi). The `?? 0`
+ * rating fallback is a no-op for the per-type results (whose `vote_average` is
+ * always present) and preserves `fromMulti`'s behaviour for optional ratings.
+ */
+const toMediaItem = (mediaType: "movie" | "tv", result: MediaResult): MediaItem => ({
+  id: result.id,
+  mediaType,
+  title: result.title ?? result.name ?? "Untitled",
+  year: extractYear(result.release_date ?? result.first_air_date),
+  rating: result.vote_average ?? 0,
+  posterUrl: img(result.poster_path, POSTER_SIZE),
+  backdropUrl: img(result.backdrop_path, BACKDROP_SIZE),
+  overview: result.overview ?? "",
 });
 
-export const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
-  id: t.id,
-  mediaType: "tv",
-  title: t.name,
-  year: extractYear(t.first_air_date),
-  rating: t.vote_average,
-  posterUrl: img(t.poster_path, POSTER_SIZE),
-  backdropUrl: img(t.backdrop_path, BACKDROP_SIZE),
-  overview: t.overview ?? "",
+/** The fields a person result carries that `toPersonItem` reads. */
+interface PersonResult {
+  id: number;
+  name?: string;
+  title?: string;
+  known_for_department?: string;
+  profile_path?: string | null;
+  known_for?: { title?: string; name?: string }[];
+}
+
+/**
+ * The shared `PersonItem` builder behind `fromPerson` and the person branch of
+ * `fromMulti`. The per-type `/search/person` endpoint and multi-search return
+ * the same person fields, so both build the same shape.
+ */
+const toPersonItem = (result: PersonResult): PersonItem => ({
+  id: result.id,
+  mediaType: "person",
+  name: result.name ?? result.title ?? "Unknown",
+  department: result.known_for_department ?? "Acting",
+  profileUrl: img(result.profile_path, PROFILE_SIZE),
+  knownFor: (result.known_for ?? [])
+    .map((k) => k.title ?? k.name)
+    .filter((t): t is string => Boolean(t))
+    .slice(0, 3),
 });
+
+export const fromMovie = (m: TmdbMovieSearchResult): MediaItem => toMediaItem("movie", m);
+
+export const fromTv = (t: TmdbTvSearchResult): MediaItem => toMediaItem("tv", t);
 
 // Trending "all" also returns people; filter them out so they are not
 // rendered or routed as movies or TV.
 export const fromTrending = (r: TmdbTrendingResult): MediaItem | null => {
   if (r.media_type !== "movie" && r.media_type !== "tv") return null;
-  return {
-    id: r.id,
-    mediaType: r.media_type,
-    title: r.title ?? r.name ?? "Untitled",
-    year: extractYear(r.release_date ?? r.first_air_date),
-    rating: r.vote_average,
-    posterUrl: img(r.poster_path, POSTER_SIZE),
-    backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-    overview: r.overview ?? "",
-  };
+  return toMediaItem(r.media_type, r);
 };
 
 export const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
-  if (r.media_type === "person") {
-    return {
-      id: r.id,
-      mediaType: "person",
-      name: r.name ?? r.title ?? "Unknown",
-      department: r.known_for_department ?? "Acting",
-      profileUrl: img(r.profile_path, PROFILE_SIZE),
-      knownFor: (r.known_for ?? [])
-        .map((k) => k.title ?? k.name)
-        .filter((t): t is string => Boolean(t))
-        .slice(0, 3),
-    };
-  }
-  if (r.media_type === "movie" || r.media_type === "tv") {
-    return {
-      id: r.id,
-      mediaType: r.media_type,
-      title: r.title ?? r.name ?? "Untitled",
-      year: extractYear(r.release_date ?? r.first_air_date),
-      rating: r.vote_average ?? 0,
-      posterUrl: img(r.poster_path, POSTER_SIZE),
-      backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-      overview: r.overview ?? "",
-    };
-  }
+  if (r.media_type === "person") return toPersonItem(r);
+  if (r.media_type === "movie" || r.media_type === "tv") return toMediaItem(r.media_type, r);
   return null;
 };
 
 // The per-type `/search/person` endpoint returns the same person fields
 // `fromMulti`'s person branch reads, so this is a thin extraction to the shared
 // `PersonItem` shape rather than new shaping logic.
-export const fromPerson = (p: TmdbPersonSearchResult): PersonItem => ({
-  id: p.id,
-  mediaType: "person",
-  name: p.name,
-  department: p.known_for_department ?? "Acting",
-  profileUrl: img(p.profile_path, PROFILE_SIZE),
-  knownFor: (p.known_for ?? [])
-    .map((k) => k.title ?? k.name)
-    .filter((t): t is string => Boolean(t))
-    .slice(0, 3),
-});
+export const fromPerson = (p: TmdbPersonSearchResult): PersonItem => toPersonItem(p);
 
 const SIMILAR_LIMIT = 18;
 
