@@ -26,6 +26,7 @@ import {
   shapeEpisodeRatings,
   shapeMovie,
   shapePerson,
+  shapeReviews,
   shapeTv,
   type EpisodeRatingsData,
   type MediaDetail,
@@ -49,6 +50,7 @@ export type {
   PersonCredit,
   PersonDetail,
   PersonItem,
+  Review,
   SearchItem,
   SeasonRatings,
   WatchProvider,
@@ -179,12 +181,15 @@ export const getMovieDetail = createServerFn({ method: "GET" })
       async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
-        const [details, credits, providers, videos, recommendations] = await Promise.all([
+        const [details, credits, providers, videos, recommendations, reviews] = await Promise.all([
           tmdb.getMovieDetails(id),
           tmdb.getMovieCredits(id).catch(() => null),
           tmdb.getWatchProviders(id).catch(() => null),
           tmdb.getMovieVideos(id).catch(() => null),
           tmdb.getMovieRecommendations(id).catch(() => null),
+          // Reviews are a non-critical extra; a failed or slow fetch degrades
+          // to no section rather than breaking the rest of the detail page.
+          tmdb.getMovieReviews(id).catch(() => null),
         ]);
         const omdbData = details.imdb_id
           ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
@@ -211,6 +216,7 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           awards,
           details.imdb_id ?? undefined,
           similar,
+          shapeReviews(reviews),
         );
       },
       { isDegraded: () => omdbFailed },
@@ -230,12 +236,15 @@ export const getTvDetail = createServerFn({ method: "GET" })
       async () => {
         const tmdb = getTmdb();
         const omdb = getOmdb();
-        const [details, credits, providers, videos, recommendations] = await Promise.all([
+        const [details, credits, providers, videos, recommendations, reviews] = await Promise.all([
           tmdb.getTvDetails(id),
           tmdb.getTvCredits(id).catch(() => null),
           tmdb.getTvWatchProviders(id).catch(() => null),
           tmdb.getTvVideos(id).catch(() => null),
           tmdb.getTvRecommendations(id).catch(() => null),
+          // Reviews are a non-critical extra; a failed or slow fetch degrades
+          // to no section rather than breaking the rest of the detail page.
+          tmdb.getTvReviews(id).catch(() => null),
         ]);
         const year = extractYear(details.first_air_date);
         const omdbData = (await omdb
@@ -265,6 +274,7 @@ export const getTvDetail = createServerFn({ method: "GET" })
           awards,
           omdbData?.imdbID,
           similar,
+          shapeReviews(reviews),
         );
       },
       { isDegraded: () => omdbFailed },

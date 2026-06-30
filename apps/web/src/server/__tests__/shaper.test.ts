@@ -5,6 +5,8 @@ import type {
   TmdbCombinedCredit,
   TmdbPersonCombinedCredits,
   TmdbPersonDetails,
+  TmdbReview,
+  TmdbReviewsResponse,
   OmdbMovieDetails,
   OmdbSeasonResponse,
 } from "@showtime/core";
@@ -15,6 +17,7 @@ import {
   rankSimilar,
   shapeEpisodeRatings,
   shapePerson,
+  shapeReviews,
   shapeTv,
   type MediaItem,
 } from "../shaper.js";
@@ -314,7 +317,7 @@ describe("shapeTv season label", () => {
     }) as unknown as Parameters<typeof shapeTv>[0];
 
   const shape = (numberOfSeasons: number) =>
-    shapeTv(tvDetails(numberOfSeasons), null, null, null, [], null, undefined, []);
+    shapeTv(tvDetails(numberOfSeasons), null, null, null, [], null, undefined, [], []);
 
   it("preformats the season count, singular and plural", () => {
     expect(shape(1).seasonsLabel).toBe("1 season");
@@ -481,5 +484,81 @@ describe("shapePerson", () => {
     expect(result.knownFor[0].id).toBe(111);
     const voteOrder = result.knownFor.map((c) => c.id);
     expect(voteOrder).toEqual([...voteOrder].sort((a, b) => b - a));
+  });
+});
+
+describe("shapeReviews", () => {
+  const tmdbReview = (overrides: Partial<TmdbReview>): TmdbReview => ({
+    id: "r1",
+    author: "Roger",
+    author_details: { name: "Roger", username: "roger", avatar_path: null, rating: null },
+    content: "A solid watch.",
+    created_at: "2020-01-01T00:00:00.000Z",
+    updated_at: "2020-01-01T00:00:00.000Z",
+    url: "https://www.themoviedb.org/review/r1",
+    ...overrides,
+  });
+
+  const response = (results: TmdbReview[]): TmdbReviewsResponse => ({
+    id: 1,
+    page: 1,
+    results,
+    total_pages: 1,
+    total_results: results.length,
+  });
+
+  it("maps author, rating, content and url, preserving a present rating", () => {
+    const result = shapeReviews(
+      response([
+        tmdbReview({
+          author: "Ebert",
+          content: "Loved it.",
+          author_details: { name: "Ebert", username: "ebert", avatar_path: null, rating: 9 },
+          url: "https://www.themoviedb.org/review/abc",
+        }),
+      ]),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      id: "r1",
+      author: "Ebert",
+      rating: 9,
+      content: "Loved it.",
+      url: "https://www.themoviedb.org/review/abc",
+    });
+  });
+
+  it("returns an empty list when the fetch failed (null)", () => {
+    expect(shapeReviews(null)).toEqual([]);
+  });
+
+  it("returns an empty list when there are no reviews", () => {
+    expect(shapeReviews(response([]))).toEqual([]);
+  });
+
+  it("drops reviews whose content is blank", () => {
+    const result = shapeReviews(
+      response([
+        tmdbReview({ id: "blank", content: "   " }),
+        tmdbReview({ id: "kept", content: "Worth it." }),
+      ]),
+    );
+
+    expect(result.map((review) => review.id)).toEqual(["kept"]);
+  });
+
+  it("caps the number of reviews so the section cannot dominate the layout", () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      tmdbReview({ id: `r${index}`, content: `Review ${index}` }),
+    );
+
+    expect(shapeReviews(response(many)).length).toBeLessThanOrEqual(6);
+  });
+
+  it("caps very long review content via core's formatReview", () => {
+    const result = shapeReviews(response([tmdbReview({ content: "x".repeat(2000) })]));
+
+    expect(result[0].content.length).toBeLessThan(2000);
   });
 });

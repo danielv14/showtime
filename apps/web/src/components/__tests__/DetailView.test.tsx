@@ -29,6 +29,7 @@ const detail = (overrides: Partial<MediaDetail>): MediaDetail => ({
   ratings: [],
   awards: null,
   similar: [],
+  reviews: [],
   ...overrides,
 });
 

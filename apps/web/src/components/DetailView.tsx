@@ -6,6 +6,7 @@ import { toPersonSlug } from "../lib/slug";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
+import { Reviews } from "./Reviews";
 import { WhereToWatch } from "./WhereToWatch";
 
 const ratingAccent: Record<string, string> = {
@@ -196,6 +197,8 @@ export const DetailView = ({
             <CastList cast={detail.cast} />
           </section>
         ) : null}
+
+        <Reviews reviews={detail.reviews} />
 
         <MediaRow
           title={detail.mediaType === "tv" ? "Similar series" : "Similar movies"}

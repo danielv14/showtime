@@ -3,6 +3,7 @@ import {
   crewByJob,
   extractOmdbRatings,
   extractYear,
+  formatReview,
   formatWatchProviders,
   selectProviderRegion,
   selectTrailerUrl,
@@ -22,6 +23,7 @@ import {
   type OmdbMovieDetails,
   type OmdbSeriesDetails,
   type OmdbSeasonResponse,
+  type TmdbReviewsResponse,
 } from "@showtime/core";
 
 // Pure shaping module: maps core's upstream `Tmdb*` / `Omdb*` types into the
@@ -102,6 +104,20 @@ export interface MediaGenre {
   name: string;
 }
 
+/**
+ * One user review on a detail page. `rating` is null when the author left no
+ * score. `content` is already capped by core's `formatReview` (so a single
+ * review cannot dominate the payload); the component handles display-level
+ * truncation and expansion. `url` links to the full review on TMDB.
+ */
+export interface Review {
+  id: string;
+  author: string;
+  rating: number | null;
+  content: string;
+  url: string;
+}
+
 export interface MediaDetail {
   id: number;
   mediaType: "movie" | "tv";
@@ -124,6 +140,7 @@ export interface MediaDetail {
   ratings: ExternalRating[];
   awards: string | null;
   similar: MediaItem[];
+  reviews: Review[];
   imdbId?: string;
   // TV-only extras
   seasons?: number;
@@ -361,6 +378,29 @@ export const mapOmdbRatings = (
   omdb: OmdbMovieDetails | OmdbSeriesDetails | null,
 ): { ratings: ExternalRating[]; awards: string | null } => extractOmdbRatings(omdb);
 
+/** How many reviews the detail page renders; TMDB returns up to 20 per page. */
+const REVIEW_LIMIT = 6;
+
+/**
+ * Shape a TMDB reviews response into the UI `Review` list. A failed reviews
+ * fetch arrives as `null`, which becomes an empty list so the section is simply
+ * omitted rather than breaking the page. Reviews with no text are dropped (their
+ * card would render empty), and the list is capped so it does not dominate the
+ * layout. Delegates per-review formatting to core's `formatReview`.
+ */
+export const shapeReviews = (reviews: TmdbReviewsResponse | null): Review[] =>
+  (reviews?.results ?? [])
+    .map(formatReview)
+    .filter((review) => review.content.trim().length > 0)
+    .slice(0, REVIEW_LIMIT)
+    .map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.rating,
+      content: review.content,
+      url: review.url,
+    }));
+
 /** Build the preformatted season-count label (e.g. "1 season", "3 seasons"). */
 const seasonsLabel = (seasons: number | undefined): string | null =>
   seasons ? `${seasons} season${seasons === 1 ? "" : "s"}` : null;
@@ -374,6 +414,7 @@ export const shapeMovie = (
   awards: string | null,
   imdbId: string | undefined,
   similar: MediaItem[],
+  reviews: Review[],
 ): MediaDetail => ({
   id: d.id,
   mediaType: "movie",
@@ -397,6 +438,7 @@ export const shapeMovie = (
   awards,
   imdbId,
   similar,
+  reviews,
 });
 
 export const shapeTv = (
@@ -408,6 +450,7 @@ export const shapeTv = (
   awards: string | null,
   imdbId: string | undefined,
   similar: MediaItem[],
+  reviews: Review[],
 ): MediaDetail => ({
   id: d.id,
   mediaType: "tv",
@@ -435,6 +478,7 @@ export const shapeTv = (
   seasonsLabel: seasonsLabel(d.number_of_seasons),
   imdbId,
   similar,
+  reviews,
 });
 
 // ----- person shaping ---------------------------------------------------------
