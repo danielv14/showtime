@@ -1,7 +1,7 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, Layers } from "lucide-react";
-import type { CreditName, ExternalRating, MediaDetail } from "#/server/media";
+import { ExternalLink, Layers, TriangleAlert } from "lucide-react";
+import type { CreditName, ExternalRating, MediaDetail, MediaRatingsStatus } from "#/server/media";
 import { toCollectionSlug, toPersonSlug } from "#/lib/slug";
 import { MediaHero } from "#/components/media/MediaHero";
 import { PosterFrame } from "#/components/media/PosterFrame";
@@ -43,6 +43,29 @@ const RatingChip = ({ rating }: { rating: ExternalRating }) => (
 );
 
 /**
+ * Copy for the missing-ratings note, keyed by why the OMDB fetch failed. A rate
+ * limit is expected and self-recovering, so it says so; any other failure gets
+ * the neutral "try again later".
+ */
+const ratingsUnavailableCopy: Record<Exclude<MediaRatingsStatus, "ok">, string> = {
+  rate_limited: "Ratings temporarily unavailable. Too many requests right now, back soon.",
+  unavailable: "Ratings temporarily unavailable. Please try again later.",
+};
+
+/**
+ * Shown where the IMDb/Rotten Tomatoes chips would be when OMDB could not be
+ * reached, so a rate limit or outage reads as "temporarily unavailable" instead
+ * of the ratings silently disappearing. Not rendered when OMDB simply has no
+ * ratings for the title (status "ok"), which stays a clean omission.
+ */
+const RatingsUnavailable = ({ status }: { status: Exclude<MediaRatingsStatus, "ok"> }) => (
+  <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-400">
+    <TriangleAlert className="h-4 w-4 shrink-0 text-amber-300" />
+    <span>{ratingsUnavailableCopy[status]}</span>
+  </div>
+);
+
+/**
  * The detail page hero: poster and backdrop, title and facts, genre tags,
  * external ratings, overview, credits, awards, the collection link, and the
  * trailer / IMDb actions. Driven entirely by the shaped `MediaDetail`.
@@ -51,6 +74,9 @@ export const DetailHero = ({ detail }: { detail: MediaDetail }) => {
   const facts = [detail.year, detail.runtime, detail.seasonsLabel].filter(
     (fact) => Boolean(fact) && fact !== NA,
   );
+  // A payload cached before `ratingsStatus` existed has no value; treat that as
+  // "ok" (a clean omission) rather than rendering a spurious unavailable note.
+  const ratingsStatus = detail.ratingsStatus ?? "ok";
 
   return (
     <MediaHero
@@ -102,6 +128,8 @@ export const DetailHero = ({ detail }: { detail: MediaDetail }) => {
             <RatingChip key={rating.source} rating={rating} />
           ))}
         </div>
+      ) : ratingsStatus !== "ok" ? (
+        <RatingsUnavailable status={ratingsStatus} />
       ) : null}
 
       {detail.overview ? (

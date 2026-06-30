@@ -35,6 +35,7 @@ const detail = (overrides: Partial<MediaDetail>): MediaDetail => ({
   trailerUrl: null,
   whereToWatch: null,
   ratings: [],
+  ratingsStatus: "ok",
   awards: null,
   similar: [],
   reviews: [],
@@ -77,6 +78,30 @@ describe("DetailView collection entry", () => {
   it("renders no collection entry for a standalone movie", async () => {
     await renderWithRouter(<DetailView detail={detail({ collection: null })} />);
     expect(screen.queryByText(/Part of/)).toBeNull();
+  });
+});
+
+describe("DetailView external ratings", () => {
+  it("flags a rate limit where the rating chips would be", async () => {
+    await renderWithRouter(
+      <DetailView detail={detail({ ratings: [], ratingsStatus: "rate_limited" })} />,
+    );
+
+    expect(screen.getByText(/too many requests/i)).toBeDefined();
+  });
+
+  it("shows a generic unavailable note for a non-rate-limit OMDB failure", async () => {
+    await renderWithRouter(
+      <DetailView detail={detail({ ratings: [], ratingsStatus: "unavailable" })} />,
+    );
+
+    expect(screen.getByText(/please try again later/i)).toBeDefined();
+  });
+
+  it("shows no note when OMDB simply has no ratings for the title", async () => {
+    await renderWithRouter(<DetailView detail={detail({ ratings: [], ratingsStatus: "ok" })} />);
+
+    expect(screen.queryByText(/temporarily unavailable/i)).toBeNull();
   });
 });
 

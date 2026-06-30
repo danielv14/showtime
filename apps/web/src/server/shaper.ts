@@ -130,6 +130,19 @@ export interface CollectionSummary {
   name: string;
 }
 
+/**
+ * Whether external (OMDB) ratings could be fetched for a title.
+ *
+ * - `ok`: OMDB answered. `ratings` may still be empty when the title genuinely
+ *   has no external ratings, or when there was no IMDb id to look it up by.
+ * - `rate_limited`: OMDB's daily request quota was hit, so ratings could not be
+ *   fetched right now. Temporary; the detail page says so rather than silently
+ *   dropping the rating chips.
+ * - `unavailable`: any other OMDB failure (outage, missing/invalid key) blocked
+ *   the fetch.
+ */
+export type MediaRatingsStatus = "ok" | "rate_limited" | "unavailable";
+
 export interface MediaDetail {
   id: number;
   mediaType: "movie" | "tv";
@@ -150,6 +163,13 @@ export interface MediaDetail {
   trailerUrl: string | null;
   whereToWatch: WhereToWatch | null;
   ratings: ExternalRating[];
+  /**
+   * Why external ratings are absent, when they are. Optional because payloads
+   * cached before this field was introduced do not carry it; consumers treat a
+   * missing value as "ok". Keeping it optional lets the field land without
+   * bumping the cache version (which would force a full re-cache).
+   */
+  ratingsStatus?: MediaRatingsStatus;
   awards: string | null;
   similar: MediaItem[];
   reviews: Review[];
@@ -459,6 +479,7 @@ export const shapeMovie = (
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
   awards: string | null,
+  ratingsStatus: MediaRatingsStatus,
   imdbId: string | undefined,
   similar: MediaItem[],
   reviews: Review[],
@@ -482,6 +503,7 @@ export const shapeMovie = (
   trailerUrl: firstTrailerUrl(videos),
   whereToWatch: mapProviders(providers),
   ratings,
+  ratingsStatus,
   awards,
   imdbId,
   similar,
@@ -498,6 +520,7 @@ export const shapeTv = (
   videos: TmdbVideosResponse | null,
   ratings: ExternalRating[],
   awards: string | null,
+  ratingsStatus: MediaRatingsStatus,
   imdbId: string | undefined,
   similar: MediaItem[],
   reviews: Review[],
@@ -521,6 +544,7 @@ export const shapeTv = (
   trailerUrl: firstTrailerUrl(videos),
   whereToWatch: mapProviders(providers),
   ratings,
+  ratingsStatus,
   awards,
   seasons: d.number_of_seasons,
   episodes: d.number_of_episodes,

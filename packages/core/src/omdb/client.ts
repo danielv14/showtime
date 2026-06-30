@@ -13,14 +13,23 @@ import type {
 const OMDB_BASE_URL = "https://www.omdbapi.com/";
 
 /**
- * Why an OMDB call failed. `not_found` is OMDB definitively answering that it
- * has no result for the query (a wire-level `Response: "False"`): a permanent
- * miss, so consumers can cache it for the full window and stay quiet.
- * `transient` is an upstream failure where OMDB never gave a real answer
- * (timeout, 5xx, network, rate limit): worth shortening any cache and surfacing
- * in logs, since it may recover.
+ * Why an OMDB call failed.
+ *
+ * - `not_found`: OMDB definitively answering that it has no result for the query
+ *   (a wire-level `Response: "False"`). A permanent miss, so consumers can cache
+ *   it for the full window and stay quiet.
+ * - `rate_limited`: OMDB's daily request quota is exhausted. OMDB signals this
+ *   with a 401 (it does not use 429) and a `Request limit reached!` body. It is
+ *   temporary and recovers when the quota resets, so consumers can present it as
+ *   "temporarily unavailable" rather than an outage.
+ * - `auth`: the API key is missing or invalid (also a 401, but with an
+ *   `Invalid API key!` / `No API key provided.` body). A configuration problem
+ *   that will not recover on its own, so it is worth logging loudly.
+ * - `transient`: an upstream failure where OMDB never gave a real answer
+ *   (timeout, 5xx, network). Worth shortening any cache and surfacing in logs,
+ *   since it may recover.
  */
-export type OmdbErrorKind = "not_found" | "transient";
+export type OmdbErrorKind = "not_found" | "rate_limited" | "auth" | "transient";
 
 export class OmdbApiError extends Error {
   readonly kind: OmdbErrorKind;
@@ -85,6 +94,49 @@ export const parseTotalSeasons = (totalSeasons: string | undefined): number => {
 export const createOmdbHttpClient = (): HttpClient =>
   createHttpClient({ prefixUrl: OMDB_BASE_URL });
 
+/** OMDB's body text when the daily request quota is exhausted. */
+const RATE_LIMIT_PATTERN = /request limit reached/i;
+
+/**
+ * Read OMDB's `Error` message out of a raw error-response body. OMDB returns its
+ * failure reason as JSON (e.g. `{"Response":"False","Error":"Request limit
+ * reached!"}`) even on a 401, so the body is what distinguishes a quota
+ * exhaustion from a bad key. Returns undefined when there is no body or it does
+ * not parse.
+ */
+const parseOmdbErrorMessage = (body: string | undefined): string | undefined => {
+  if (!body) return undefined;
+  try {
+    const parsed = JSON.parse(body) as { Error?: unknown };
+    return typeof parsed.Error === "string" ? parsed.Error : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Map a seam-level transport failure onto an `OmdbApiError` with the right kind.
+ * A timeout or 5xx is `transient`. A 401 is OMDB's catch-all for auth problems
+ * AND for daily-quota exhaustion (it does not use 429), so the response body is
+ * what tells them apart: a `Request limit reached!` body is `rate_limited`
+ * (expected, recovers when the quota resets), anything else is `auth` (a missing
+ * or invalid key, which needs the key fixed and will not recover on its own).
+ */
+const toOmdbError = (error: HttpRequestError): OmdbApiError => {
+  if (error.isTimeout) return new OmdbApiError("OMDB request timed out", "transient");
+  if (error.statusCode === 401) {
+    const reason = parseOmdbErrorMessage(error.responseBody);
+    if (reason && RATE_LIMIT_PATTERN.test(reason)) {
+      return new OmdbApiError(`OMDB daily request limit reached: ${reason}`, "rate_limited");
+    }
+    return new OmdbApiError(
+      reason ? `OMDB authentication failed: ${reason}` : "OMDB authentication failed (status 401)",
+      "auth",
+    );
+  }
+  return new OmdbApiError(`OMDB request failed with status ${error.statusCode}`, "transient");
+};
+
 export const createOmdbClient = (
   apiKey: string,
   httpClient: HttpClient = createOmdbHttpClient(),
@@ -111,15 +163,11 @@ export const createOmdbClient = (
     try {
       return await httpClient.get<T>("", { searchParams });
     } catch (error) {
+      // Translate the seam's transport failure into the right `OmdbApiError`
+      // kind (rate limit vs auth vs other transient fault), reading OMDB's 401
+      // body where it encodes the real reason. See `toOmdbError`.
       if (error instanceof HttpRequestError) {
-        // OMDB never gave a real answer (timeout, 5xx, network, rate limit), so
-        // this is transient and may recover, unlike a wire-level "not found".
-        throw new OmdbApiError(
-          error.isTimeout
-            ? "OMDB request timed out"
-            : `OMDB request failed with status ${error.statusCode}`,
-          "transient",
-        );
+        throw toOmdbError(error);
       }
       throw error;
     }
