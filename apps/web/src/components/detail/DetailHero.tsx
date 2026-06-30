@@ -1,8 +1,9 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, Layers, TriangleAlert } from "lucide-react";
+import { Layers, TriangleAlert } from "lucide-react";
 import type { CreditName, ExternalRating, MediaDetail, MediaRatingsStatus } from "#/server/media";
 import { toCollectionSlug, toPersonSlug } from "#/lib/slug";
+import { ImdbLink } from "#/components/ui/ImdbLink";
 import { MediaHero } from "#/components/media/MediaHero";
 import { PosterFrame } from "#/components/media/PosterFrame";
 import { TrailerPlayer } from "./TrailerPlayer";
@@ -168,17 +169,7 @@ export const DetailHero = ({ detail }: { detail: MediaDetail }) => {
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <TrailerPlayer url={detail.trailerUrl} title={detail.title} />
-        {detail.imdbId ? (
-          <a
-            href={`https://www.imdb.com/title/${detail.imdbId}/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-100 no-underline transition hover:bg-white/10"
-          >
-            <ExternalLink className="h-4 w-4" />
-            View on IMDb
-          </a>
-        ) : null}
+        {detail.imdbId ? <ImdbLink kind="title" id={detail.imdbId} /> : null}
       </div>
     </MediaHero>
   );
