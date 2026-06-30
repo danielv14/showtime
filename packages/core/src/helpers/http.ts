@@ -20,14 +20,19 @@ export interface HttpClient {
  * Transport-neutral failure thrown by the production adapter when the
  * underlying request fails (a non-2xx response or a timeout). It carries just
  * enough context for a client to translate it into its own domain error
- * (e.g. `TmdbApiError`) without leaking ky's error types past the seam. A fake
- * adapter throws this to simulate a transport failure in tests.
+ * (e.g. `TmdbApiError`) without leaking ky's error types past the seam:
+ * the status code, whether it was a timeout, and the raw response body when
+ * there was one. The body matters because some upstreams (OMDB) encode the
+ * real reason for a failure in it even on a 401, so a client can tell a
+ * rate-limit apart from a bad key. A fake adapter throws this to simulate a
+ * transport failure in tests.
  */
 export class HttpRequestError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
     public isTimeout: boolean = false,
+    public responseBody?: string,
   ) {
     super(message);
     this.name = "HttpRequestError";
@@ -70,9 +75,19 @@ export const createHttpClient = (config: {
       return await kyClient.get(endpoint, { searchParams: options?.searchParams }).json<T>();
     } catch (error) {
       if (error instanceof HTTPError) {
+        // Capture the response body so a client can read an upstream's encoded
+        // failure reason (e.g. OMDB's `Error` field on a 401). Clone first so
+        // reading it here cannot interfere with the response elsewhere, and
+        // swallow a read failure: the status code is the important part.
+        const responseBody = await error.response
+          .clone()
+          .text()
+          .catch(() => undefined);
         throw new HttpRequestError(
           `Request to ${endpoint} failed with status ${error.response.status}`,
           error.response.status,
+          false,
+          responseBody,
         );
       }
       if (error instanceof TimeoutError) {

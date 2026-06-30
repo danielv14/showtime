@@ -32,13 +32,23 @@ export const createFakeHttpClient = (
   return { get, requests };
 };
 
-/** Convenience: a responder that always fails with an `HttpRequestError`. */
-export const failWith = (statusCode?: number, isTimeout = false): FakeResponder => {
+/**
+ * Convenience: a responder that always fails with an `HttpRequestError`.
+ * `responseBody` simulates the raw error body the production adapter captures,
+ * so a client that classifies failures by body (e.g. OMDB's 401 reason) can be
+ * exercised without a real request.
+ */
+export const failWith = (
+  statusCode?: number,
+  isTimeout = false,
+  responseBody?: string,
+): FakeResponder => {
   return () => {
     throw new HttpRequestError(
       isTimeout ? "fake timeout" : `fake failure with status ${statusCode}`,
       statusCode,
       isTimeout,
+      responseBody,
     );
   };
 };

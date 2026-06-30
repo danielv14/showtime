@@ -361,7 +361,7 @@ describe("shapeTv season label", () => {
     }) as unknown as Parameters<typeof shapeTv>[0];
 
   const shape = (numberOfSeasons: number) =>
-    shapeTv(tvDetails(numberOfSeasons), null, null, null, [], null, undefined, [], []);
+    shapeTv(tvDetails(numberOfSeasons), null, null, null, [], null, "ok", undefined, [], []);
 
   it("preformats the season count, singular and plural", () => {
     expect(shape(1).seasonsLabel).toBe("1 season");
@@ -628,7 +628,18 @@ describe("shapeMovie collection", () => {
     }) as unknown as TmdbMovieDetails;
 
   const shape = (belongsToCollection: TmdbMovieDetails["belongs_to_collection"]) =>
-    shapeMovie(movieDetails(belongsToCollection), null, null, null, [], null, undefined, [], []);
+    shapeMovie(
+      movieDetails(belongsToCollection),
+      null,
+      null,
+      null,
+      [],
+      null,
+      "ok",
+      undefined,
+      [],
+      [],
+    );
 
   it("carries the collection summary when the movie belongs to one", () => {
     const result = shape({

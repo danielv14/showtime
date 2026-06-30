@@ -35,6 +35,7 @@ import {
   type EpisodeRatingsData,
   type MediaDetail,
   type MediaItem,
+  type MediaRatingsStatus,
   type PersonDetail,
   type SearchItem,
 } from "./shaper";
@@ -54,6 +55,7 @@ export type {
   MediaDetail,
   MediaGenre,
   MediaItem,
+  MediaRatingsStatus,
   PersonCredit,
   PersonDetail,
   PersonItem,
@@ -65,16 +67,21 @@ export type {
 } from "./shaper";
 
 /**
- * Logs a handled upstream sub-fetch failure as a structured error and returns
+ * Logs a handled upstream sub-fetch failure as a structured record and returns
  * `null` so the caller degrades gracefully instead of throwing. These failures
- * used to be swallowed silently; now they surface in Workers Logs (filter with
- * `$metadata.error EXISTS`) with enough context to diagnose them: which fetch
- * failed, the id/params involved, and the underlying error.
+ * used to be swallowed silently; now they surface in Workers Logs with enough
+ * context to diagnose them: which fetch failed, the id/params involved, and the
+ * underlying error.
+ *
+ * `level` defaults to `error`. Pass `warn` for an expected, self-recovering
+ * failure such as an OMDB rate limit, so the daily-quota noise does not drown
+ * out genuine errors (a missing key, an outage) in the logs.
  */
 const logUpstreamFailure =
-  (fetch: string, context: Record<string, unknown>) =>
+  (fetch: string, context: Record<string, unknown>, level: "error" | "warn" = "error") =>
   (error: unknown): null => {
-    console.error("upstream fetch failed", { fetch, ...context }, error);
+    const log = level === "warn" ? console.warn : console.error;
+    log("upstream fetch failed", { fetch, ...context }, error);
     return null;
   };
 
@@ -192,10 +199,12 @@ export const searchMedia = createServerFn({ method: "GET" })
 export const getMovieDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
   .handler(async ({ data: id }): Promise<MediaDetail> => {
-    // Set when an OMDB call we expected to succeed failed, so the partial
-    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
-    // for a full day. See `cached`'s `isDegraded` option.
-    let omdbFailed = false;
+    // Tracks whether the OMDB ratings fetch succeeded. Anything other than "ok"
+    // means the IMDb/Rotten Tomatoes ratings are missing because the call
+    // failed, so the partial payload is cached briefly (see `cached`'s
+    // `isDegraded`) and the detail page can say why instead of dropping the
+    // chips silently.
+    let ratingsStatus: MediaRatingsStatus = "ok";
     return cached(
       `movie-detail:${id}`,
       TTL.day,
@@ -217,11 +226,20 @@ export const getMovieDetail = createServerFn({ method: "GET" })
         const omdbData = details.imdb_id
           ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
               // A definitive OMDB "not found" is permanent, so caching the empty
-              // result for the full day is correct and not worth surfacing. Any
-              // other failure (a transient OMDB outage, or an unexpected error)
-              // shortens the cache and is logged so it is visible in Workers Logs.
+              // result for the full day is correct and not worth surfacing. A
+              // rate limit is expected and self-recovering, so it is logged at
+              // warn and flagged so the page can say "temporarily unavailable".
+              // Any other failure (outage, bad key) is an error.
               if (error instanceof OmdbApiError && error.kind === "not_found") return null;
-              omdbFailed = true;
+              if (error instanceof OmdbApiError && error.kind === "rate_limited") {
+                ratingsStatus = "rate_limited";
+                return logUpstreamFailure(
+                  "omdb.getById",
+                  { imdbId: details.imdb_id },
+                  "warn",
+                )(error);
+              }
+              ratingsStatus = "unavailable";
               return logUpstreamFailure("omdb.getById", { imdbId: details.imdb_id })(error);
             })) as OmdbMovieDetails | null)
           : null;
@@ -243,12 +261,13 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           videos,
           ratings,
           awards,
+          ratingsStatus,
           details.imdb_id ?? undefined,
           similar,
           shapeReviews(reviews),
         );
       },
-      { isDegraded: () => omdbFailed },
+      { isDegraded: () => ratingsStatus !== "ok" },
     );
   });
 
@@ -269,10 +288,12 @@ export const getCollectionDetail = createServerFn({ method: "GET" })
 export const getTvDetail = createServerFn({ method: "GET" })
   .validator((id: number) => id)
   .handler(async ({ data: id }): Promise<MediaDetail> => {
-    // Set when an OMDB call we expected to succeed failed, so the partial
-    // payload (empty IMDb/Rotten Tomatoes ratings) is cached briefly instead of
-    // for a full day. See `cached`'s `isDegraded` option.
-    let omdbFailed = false;
+    // Tracks whether the OMDB ratings fetch succeeded. Anything other than "ok"
+    // means the IMDb/Rotten Tomatoes ratings are missing because the call
+    // failed, so the partial payload is cached briefly (see `cached`'s
+    // `isDegraded`) and the detail page can say why instead of dropping the
+    // chips silently.
+    let ratingsStatus: MediaRatingsStatus = "ok";
     return cached(
       `tv-detail:${id}`,
       TTL.day,
@@ -303,11 +324,20 @@ export const getTvDetail = createServerFn({ method: "GET" })
           .catch((error) => {
             // Title+year lookups legitimately miss for series OMDB does not have,
             // raising a `not_found` OmdbApiError. That is permanent, so it must
-            // not shorten the cache or be logged. A transient OMDB failure (or an
-            // unexpected error) flags the payload as degraded and is logged so it
-            // is visible in Workers Logs.
+            // not shorten the cache or be logged. A rate limit is expected and
+            // self-recovering (logged at warn, flagged so the page can say
+            // "temporarily unavailable"); any other failure (outage, bad key) is
+            // an error.
             if (error instanceof OmdbApiError && error.kind === "not_found") return null;
-            omdbFailed = true;
+            if (error instanceof OmdbApiError && error.kind === "rate_limited") {
+              ratingsStatus = "rate_limited";
+              return logUpstreamFailure(
+                "omdb.getByTitle",
+                { title: details.name, year },
+                "warn",
+              )(error);
+            }
+            ratingsStatus = "unavailable";
             return logUpstreamFailure("omdb.getByTitle", { title: details.name, year })(error);
           })) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
@@ -323,12 +353,13 @@ export const getTvDetail = createServerFn({ method: "GET" })
           videos,
           ratings,
           awards,
+          ratingsStatus,
           omdbData?.imdbID,
           similar,
           shapeReviews(reviews),
         );
       },
-      { isDegraded: () => omdbFailed },
+      { isDegraded: () => ratingsStatus !== "ok" },
     );
   });
 

@@ -70,6 +70,42 @@ describe("createOmdbClient through a fake HttpClient", () => {
     expect((error as OmdbApiError).kind).toBe("transient");
   });
 
+  it("classifies a 401 'Request limit reached' body as a rate_limited OmdbApiError", async () => {
+    const fake = createFakeHttpClient(
+      failWith(401, false, JSON.stringify({ Response: "False", Error: "Request limit reached!" })),
+    );
+    const client = createOmdbClient("omdb-key", fake);
+
+    const error = await client.getById({ imdbId: "tt1" }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(OmdbApiError);
+    expect((error as OmdbApiError).kind).toBe("rate_limited");
+    expect((error as OmdbApiError).message).toContain("Request limit reached!");
+  });
+
+  it("classifies a 401 'Invalid API key' body as an auth OmdbApiError", async () => {
+    const fake = createFakeHttpClient(
+      failWith(401, false, JSON.stringify({ Response: "False", Error: "Invalid API key!" })),
+    );
+    const client = createOmdbClient("omdb-key", fake);
+
+    const error = await client.getById({ imdbId: "tt1" }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(OmdbApiError);
+    expect((error as OmdbApiError).kind).toBe("auth");
+    expect((error as OmdbApiError).message).toContain("Invalid API key!");
+  });
+
+  it("classifies a 401 with no readable body as an auth OmdbApiError", async () => {
+    const fake = createFakeHttpClient(failWith(401));
+    const client = createOmdbClient("omdb-key", fake);
+
+    const error = await client.getById({ imdbId: "tt1" }).catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(OmdbApiError);
+    expect((error as OmdbApiError).kind).toBe("auth");
+  });
+
   it("translates a timeout into a transient OmdbApiError", async () => {
     const fake = createFakeHttpClient(failWith(undefined, true));
     const client = createOmdbClient("omdb-key", fake);
