@@ -163,7 +163,13 @@ export interface MediaDetail {
   trailerUrl: string | null;
   whereToWatch: WhereToWatch | null;
   ratings: ExternalRating[];
-  ratingsStatus: MediaRatingsStatus;
+  /**
+   * Why external ratings are absent, when they are. Optional because payloads
+   * cached before this field was introduced do not carry it; consumers treat a
+   * missing value as "ok". Keeping it optional lets the field land without
+   * bumping the cache version (which would force a full re-cache).
+   */
+  ratingsStatus?: MediaRatingsStatus;
   awards: string | null;
   similar: MediaItem[];
   reviews: Review[];

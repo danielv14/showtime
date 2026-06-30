@@ -74,6 +74,9 @@ export const DetailHero = ({ detail }: { detail: MediaDetail }) => {
   const facts = [detail.year, detail.runtime, detail.seasonsLabel].filter(
     (fact) => Boolean(fact) && fact !== NA,
   );
+  // A payload cached before `ratingsStatus` existed has no value; treat that as
+  // "ok" (a clean omission) rather than rendering a spurious unavailable note.
+  const ratingsStatus = detail.ratingsStatus ?? "ok";
 
   return (
     <MediaHero
@@ -125,8 +128,8 @@ export const DetailHero = ({ detail }: { detail: MediaDetail }) => {
             <RatingChip key={rating.source} rating={rating} />
           ))}
         </div>
-      ) : detail.ratingsStatus !== "ok" ? (
-        <RatingsUnavailable status={detail.ratingsStatus} />
+      ) : ratingsStatus !== "ok" ? (
+        <RatingsUnavailable status={ratingsStatus} />
       ) : null}
 
       {detail.overview ? (
