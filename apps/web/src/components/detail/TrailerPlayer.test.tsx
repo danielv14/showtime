@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TrailerPlayer } from "./TrailerPlayer.js";
 
 const YOUTUBE_URL = "https://www.youtube.com/watch?v=m8e-FF8MsqU";
@@ -53,13 +53,14 @@ describe("TrailerPlayer", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("moves focus to the close control when the modal opens", () => {
+  it("moves focus to the close control when the modal opens", async () => {
     render(<TrailerPlayer url={YOUTUBE_URL} title="The Matrix" />);
 
     fireEvent.click(screen.getByRole("button", { name: /watch trailer/i }));
 
+    // Base UI moves initial focus after the dialog mounts, so wait for it to land.
     const closeButton = screen.getByRole("button", { name: /close trailer/i });
-    expect(document.activeElement).toBe(closeButton);
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
   });
 
   it("returns focus to the trigger when the modal closes", () => {
