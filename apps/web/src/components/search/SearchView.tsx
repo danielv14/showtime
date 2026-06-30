@@ -1,5 +1,6 @@
 import type { SearchFilters as SearchFiltersState } from "#/server/search";
 import type { MediaItem, PersonItem, SearchItem } from "#/server/media";
+import type { YearRange } from "#/lib/year-options";
 import { MediaGrid } from "#/components/media/MediaGrid";
 import { PersonCard } from "#/components/media/PersonCard";
 import { EmptyState } from "#/components/ui/EmptyState";
@@ -29,7 +30,7 @@ export const SearchView = ({
   page: number;
   totalPages: number;
   filters: SearchFiltersState;
-  yearRange: { min: number; max: number };
+  yearRange: YearRange;
 }) => {
   const media = results.filter((item): item is MediaItem => item.mediaType !== "person");
   const people = results.filter((item): item is PersonItem => item.mediaType === "person");

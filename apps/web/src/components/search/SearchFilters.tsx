@@ -1,5 +1,5 @@
 import type { SearchFilters as SearchFiltersState, SearchType } from "#/server/search";
-import { buildYearOptions } from "#/lib/year-options";
+import { buildYearOptions, type YearRange } from "#/lib/year-options";
 import { Select, type SelectOption } from "#/components/ui/Select";
 
 const TYPE_LABELS: Record<SearchType, string> = {
@@ -25,7 +25,7 @@ export const SearchFilters = ({
   yearRange,
 }: {
   filters: SearchFiltersState;
-  yearRange: { min: number; max: number };
+  yearRange: YearRange;
 }) => {
   const showYear = filters.type === "movie" || filters.type === "tv";
 

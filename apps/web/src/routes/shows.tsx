@@ -7,6 +7,7 @@ import {
   type BrowseSearch,
 } from "../server/browse";
 import { BrowseView } from "#/components/browse/BrowseView";
+import { currentYearRange } from "../lib/year-options";
 import { browseMeta } from "../lib/seo";
 
 const ShowsPage = () => {
@@ -32,12 +33,11 @@ export const Route = createFileRoute("/shows")({
   loader: async ({ deps }) => {
     const filters = normalizeBrowseFilters(deps);
     const [result, genres] = await Promise.all([browseTv({ data: filters }), getTvGenres()]);
-    const currentYear = new Date().getFullYear();
     return {
       ...result,
       filters,
       genres,
-      yearRange: { min: BROWSE_YEAR_FLOOR, max: currentYear + 1 },
+      yearRange: currentYearRange(BROWSE_YEAR_FLOOR),
     };
   },
   head: ({ loaderData }) => {

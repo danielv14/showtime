@@ -1,5 +1,6 @@
 import type { BrowseFilters as BrowseFiltersState, GenreOption } from "#/server/browse";
 import type { MediaItem } from "#/server/media";
+import type { YearRange } from "#/lib/year-options";
 import { MediaGrid } from "#/components/media/MediaGrid";
 import { EmptyState } from "#/components/ui/EmptyState";
 import { Pagination } from "#/components/ui/Pagination";
@@ -30,7 +31,7 @@ export const BrowseView = ({
   totalPages: number;
   filters: BrowseFiltersState;
   genres: GenreOption[];
-  yearRange: { min: number; max: number };
+  yearRange: YearRange;
 }) => (
   <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
     <h1 className="mb-6 text-2xl font-bold tracking-tight text-zinc-100">{heading}</h1>
