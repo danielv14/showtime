@@ -5,7 +5,6 @@ import {
   NA,
   OmdbApiError,
   type OmdbMovieDetails,
-  type OmdbSeriesDetails,
 } from "@showtime/core";
 import { getOmdb, getTmdb } from "./clients";
 import { cached, TTL } from "./cache";
@@ -83,6 +82,38 @@ const logUpstreamFailure =
     const log = level === "warn" ? console.warn : console.error;
     log("upstream fetch failed", { fetch, ...context }, error);
     return null;
+  };
+
+/**
+ * The OMDB ratings-fetch error policy, shared by the movie and TV detail
+ * functions. Returns a `(error) => null` catch handler so the call site stays a
+ * plain `.catch(omdbCatch(...))` and its awaited result narrows to
+ * `OmdbXDetails | null` without a cast.
+ *
+ * - `not_found`: a definitive OMDB miss. Permanent, so it is silent (no status
+ *   change, no log) and the empty result caches for the full window.
+ * - `rate_limited`: the daily quota is exhausted. Expected and self-recovering,
+ *   so it is logged at warn and flagged so the page can say "temporarily
+ *   unavailable".
+ * - anything else (outage, bad key): logged at error and flagged unavailable.
+ *
+ * `setStatus` lets each caller fold the outcome back into its own
+ * `ratingsStatus` (both pass `(s) => { ratingsStatus = s; }`).
+ */
+export const omdbCatch =
+  (
+    label: string,
+    context: Record<string, unknown>,
+    setStatus: (status: MediaRatingsStatus) => void,
+  ) =>
+  (error: unknown): null => {
+    if (error instanceof OmdbApiError && error.kind === "not_found") return null;
+    if (error instanceof OmdbApiError && error.kind === "rate_limited") {
+      setStatus("rate_limited");
+      return logUpstreamFailure(label, context, "warn")(error);
+    }
+    setStatus("unavailable");
+    return logUpstreamFailure(label, context)(error);
   };
 
 // ----- server functions -------------------------------------------------------
@@ -223,25 +254,16 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           // to no section rather than breaking the rest of the detail page.
           tmdb.getMovieReviews(id).catch(logUpstreamFailure("tmdb.getMovieReviews", { id })),
         ]);
+        // `getById` returns the movie/series/episode union; an imdb_id lookup for
+        // a movie resolves to movie details, so narrow the success value to
+        // `OmdbMovieDetails`. `omdbCatch` contributes only `null`, so the awaited
+        // result is `OmdbMovieDetails | null` with no further cast.
         const omdbData = details.imdb_id
-          ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
-              // A definitive OMDB "not found" is permanent, so caching the empty
-              // result for the full day is correct and not worth surfacing. A
-              // rate limit is expected and self-recovering, so it is logged at
-              // warn and flagged so the page can say "temporarily unavailable".
-              // Any other failure (outage, bad key) is an error.
-              if (error instanceof OmdbApiError && error.kind === "not_found") return null;
-              if (error instanceof OmdbApiError && error.kind === "rate_limited") {
-                ratingsStatus = "rate_limited";
-                return logUpstreamFailure(
-                  "omdb.getById",
-                  { imdbId: details.imdb_id },
-                  "warn",
-                )(error);
-              }
-              ratingsStatus = "unavailable";
-              return logUpstreamFailure("omdb.getById", { imdbId: details.imdb_id })(error);
-            })) as OmdbMovieDetails | null)
+          ? await (omdb.getById({ imdbId: details.imdb_id }) as Promise<OmdbMovieDetails>).catch(
+              omdbCatch("omdb.getById", { imdbId: details.imdb_id }, (status) => {
+                ratingsStatus = status;
+              }),
+            )
           : null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         // Recommendations are usually higher quality than /similar; fall back to
@@ -315,31 +337,17 @@ export const getTvDetail = createServerFn({ method: "GET" })
           tmdb.getTvReviews(id).catch(logUpstreamFailure("tmdb.getTvReviews", { id })),
         ]);
         const year = extractYear(details.first_air_date);
-        const omdbData = (await omdb
+        const omdbData = await omdb
           .getByTitle({
             title: details.name,
             type: "series",
             year: year !== NA ? year : undefined,
           })
-          .catch((error) => {
-            // Title+year lookups legitimately miss for series OMDB does not have,
-            // raising a `not_found` OmdbApiError. That is permanent, so it must
-            // not shorten the cache or be logged. A rate limit is expected and
-            // self-recovering (logged at warn, flagged so the page can say
-            // "temporarily unavailable"); any other failure (outage, bad key) is
-            // an error.
-            if (error instanceof OmdbApiError && error.kind === "not_found") return null;
-            if (error instanceof OmdbApiError && error.kind === "rate_limited") {
-              ratingsStatus = "rate_limited";
-              return logUpstreamFailure(
-                "omdb.getByTitle",
-                { title: details.name, year },
-                "warn",
-              )(error);
-            }
-            ratingsStatus = "unavailable";
-            return logUpstreamFailure("omdb.getByTitle", { title: details.name, year })(error);
-          })) as OmdbSeriesDetails | null;
+          .catch(
+            omdbCatch("omdb.getByTitle", { title: details.name, year }, (status) => {
+              ratingsStatus = status;
+            }),
+          );
         const { ratings, awards } = mapOmdbRatings(omdbData);
         const similarSource = recommendations?.results?.length
           ? recommendations.results
