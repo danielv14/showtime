@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult } from "@showtime/core";
 import { MOVIE_GENRE_MAP, getGenreId } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 export const discoverMoviesTool = defineTool({
   name: "discover_movies",
@@ -40,7 +41,7 @@ export const discoverMoviesTool = defineTool({
       ])
       .optional()
       .describe("Sort order (default: popularity.desc)"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async (
     { year, genre, minRating, directorId, actorId, language, sortBy, page },
