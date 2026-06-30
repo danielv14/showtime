@@ -1,7 +1,12 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, Layers } from "lucide-react";
-import type { CreditName, EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
+import type {
+  CreditName,
+  EpisodeRatingsResult,
+  ExternalRating,
+  MediaDetail,
+} from "../server/media";
 import { toCollectionSlug, toPersonSlug } from "../lib/slug";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
@@ -51,7 +56,7 @@ export const DetailView = ({
   ratings,
 }: {
   detail: MediaDetail;
-  ratings?: Promise<EpisodeRatingsData | null> | null;
+  ratings?: Promise<EpisodeRatingsResult> | null;
 }) => {
   const facts = [detail.year, detail.runtime, detail.seasonsLabel].filter(
     (fact) => Boolean(fact) && fact !== NA,

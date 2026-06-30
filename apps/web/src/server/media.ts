@@ -362,6 +362,17 @@ export const getEpisodeRatings = createServerFn({ method: "GET" })
       }),
   );
 
+/**
+ * The episode-ratings payload as the TV detail route hands it to the UI.
+ * `ready` carries the shaped data (which may have zero seasons when OMDB simply
+ * has no episodes for the series); `unavailable` means the fetch failed, e.g.
+ * OMDB was rate-limited and nothing was cached yet, so the section can say so
+ * rather than silently rendering nothing.
+ */
+export type EpisodeRatingsResult =
+  | { status: "ready"; data: EpisodeRatingsData }
+  | { status: "unavailable" };
+
 /** Args for the on-demand episode-detail fetch: which episode of which series. */
 export interface EpisodeDetailArgs {
   tvId: number;

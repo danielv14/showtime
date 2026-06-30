@@ -6,6 +6,7 @@ import {
   type EpisodeDetail,
   type EpisodeRating,
   type EpisodeRatingsData,
+  type EpisodeRatingsResult,
   type SeasonRatings,
 } from "../server/media";
 
@@ -232,6 +233,12 @@ const Empty = () => (
   <p className="text-sm text-zinc-500">No season data available for this series.</p>
 );
 
+const Unavailable = () => (
+  <p className="text-sm text-zinc-500">
+    Episode data is temporarily unavailable. Please try again later.
+  </p>
+);
+
 /**
  * The resolved-data view: season picker + episode list, or the empty state when
  * the series has no usable season data (including when the loader's streamed
@@ -239,16 +246,19 @@ const Empty = () => (
  * synchronously from already-resolved data, which is also what the tests drive.
  */
 export const SeasonEpisodesContent = ({
-  data,
+  result,
   tvId,
 }: {
-  data: EpisodeRatingsData | null;
+  result: EpisodeRatingsResult;
   tvId: number;
 }) => {
-  if (!data || data.seasons.length === 0) {
+  if (result.status === "unavailable") {
+    return <Unavailable />;
+  }
+  if (result.data.seasons.length === 0) {
     return <Empty />;
   }
-  return <EpisodeList data={data} tvId={tvId} />;
+  return <EpisodeList data={result.data} tvId={tvId} />;
 };
 
 /**
@@ -266,7 +276,7 @@ export const SeasonEpisodes = ({
   ratings,
   tvId,
 }: {
-  ratings: Promise<EpisodeRatingsData | null>;
+  ratings: Promise<EpisodeRatingsResult>;
   tvId: number;
 }) => (
   <section>
@@ -276,7 +286,7 @@ export const SeasonEpisodes = ({
     </div>
     <div className="mt-4">
       <Await promise={ratings} fallback={<Loading />}>
-        {(data) => <SeasonEpisodesContent data={data} tvId={tvId} />}
+        {(result) => <SeasonEpisodesContent result={result} tvId={tvId} />}
       </Await>
     </div>
   </section>
