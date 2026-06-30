@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { getMovieDetail } from "../server/media";
-import { DetailView } from "../components/DetailView";
+import { DetailView } from "#/components/detail/DetailView";
 import { mediaMeta } from "../lib/seo";
 import { parseMediaId, toMediaSlug } from "../lib/slug";
 

@@ -6,7 +6,7 @@ import {
   toBrowseSearch,
   type BrowseSearch,
 } from "../server/browse";
-import { BrowseView } from "../components/BrowseView";
+import { BrowseView } from "#/components/browse/BrowseView";
 import { browseMeta } from "../lib/seo";
 
 const ShowsPage = () => {

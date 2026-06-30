@@ -6,7 +6,7 @@ import {
   toSearchSearch,
   type SearchSearch,
 } from "../server/search";
-import { SearchView } from "../components/SearchView";
+import { SearchView } from "#/components/search/SearchView";
 import { searchMeta } from "../lib/seo";
 
 const SearchPage = () => {

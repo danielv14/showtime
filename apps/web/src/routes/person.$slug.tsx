@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { getPersonDetail } from "../server/media";
-import { PersonView } from "../components/PersonView";
+import { PersonView } from "#/components/person/PersonView";
 import { personMeta } from "../lib/seo";
 import { parsePersonId, toPersonSlug } from "../lib/slug";
 
