@@ -12,4 +12,11 @@
       "id": "1e0727f2d8d1497daaf8d5c9c241ee55",
     },
   ],
+  // Persist logs and errors to Workers Logs (queryable for ~7 days in the
+  // dashboard) instead of only being visible during a live `wrangler tail`.
+  // Low-traffic app, so sample every request rather than a fraction.
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
 }
