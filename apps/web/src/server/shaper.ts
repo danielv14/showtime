@@ -35,6 +35,7 @@ import {
 // testable without crossing the network or cache.
 
 const POSTER_SIZE = "w342";
+const DETAIL_POSTER_SIZE = "w500";
 const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
 
@@ -274,87 +275,92 @@ export interface CollectionDetail {
 
 // ----- mappers ----------------------------------------------------------------
 
-export const fromMovie = (m: TmdbMovieSearchResult): MediaItem => ({
-  id: m.id,
-  mediaType: "movie",
-  title: m.title,
-  year: extractYear(m.release_date),
-  rating: m.vote_average,
-  posterUrl: img(m.poster_path, POSTER_SIZE),
-  backdropUrl: img(m.backdrop_path, BACKDROP_SIZE),
-  overview: m.overview ?? "",
+/**
+ * The fields a "movie-or-TV result" carries that `toMediaItem` reads. Movie
+ * results use `title`/`release_date`, TV uses `name`/`first_air_date`, and the
+ * trending/multi results carry both optionally, so the shared shape reads the
+ * union and falls back across them. `TmdbMovieSearchResult`, `TmdbTvSearchResult`,
+ * `TmdbTrendingResult` and the movie/tv branch of `TmdbMultiSearchResult` all
+ * satisfy it structurally.
+ */
+interface MediaResult {
+  id: number;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string;
+}
+
+/**
+ * The shared `MediaItem` builder behind `fromMovie`/`fromTv`/`fromTrending` and
+ * the movie/tv branch of `fromMulti`. `mediaType` is passed by the caller (it is
+ * hardcoded for the per-type builders, derived for trending/multi). The `?? 0`
+ * rating fallback is a no-op for the per-type results (whose `vote_average` is
+ * always present) and preserves `fromMulti`'s behaviour for optional ratings.
+ */
+const toMediaItem = (mediaType: "movie" | "tv", result: MediaResult): MediaItem => ({
+  id: result.id,
+  mediaType,
+  title: result.title ?? result.name ?? "Untitled",
+  year: extractYear(result.release_date ?? result.first_air_date),
+  rating: result.vote_average ?? 0,
+  posterUrl: img(result.poster_path, POSTER_SIZE),
+  backdropUrl: img(result.backdrop_path, BACKDROP_SIZE),
+  overview: result.overview ?? "",
 });
 
-export const fromTv = (t: TmdbTvSearchResult): MediaItem => ({
-  id: t.id,
-  mediaType: "tv",
-  title: t.name,
-  year: extractYear(t.first_air_date),
-  rating: t.vote_average,
-  posterUrl: img(t.poster_path, POSTER_SIZE),
-  backdropUrl: img(t.backdrop_path, BACKDROP_SIZE),
-  overview: t.overview ?? "",
+/** The fields a person result carries that `toPersonItem` reads. */
+interface PersonResult {
+  id: number;
+  name?: string;
+  title?: string;
+  known_for_department?: string;
+  profile_path?: string | null;
+  known_for?: { title?: string; name?: string }[];
+}
+
+/**
+ * The shared `PersonItem` builder behind `fromPerson` and the person branch of
+ * `fromMulti`. The per-type `/search/person` endpoint and multi-search return
+ * the same person fields, so both build the same shape.
+ */
+const toPersonItem = (result: PersonResult): PersonItem => ({
+  id: result.id,
+  mediaType: "person",
+  name: result.name ?? result.title ?? "Unknown",
+  department: result.known_for_department ?? "Acting",
+  profileUrl: img(result.profile_path, PROFILE_SIZE),
+  knownFor: (result.known_for ?? [])
+    .map((k) => k.title ?? k.name)
+    .filter((t): t is string => Boolean(t))
+    .slice(0, 3),
 });
+
+export const fromMovie = (m: TmdbMovieSearchResult): MediaItem => toMediaItem("movie", m);
+
+export const fromTv = (t: TmdbTvSearchResult): MediaItem => toMediaItem("tv", t);
 
 // Trending "all" also returns people; filter them out so they are not
 // rendered or routed as movies or TV.
 export const fromTrending = (r: TmdbTrendingResult): MediaItem | null => {
   if (r.media_type !== "movie" && r.media_type !== "tv") return null;
-  return {
-    id: r.id,
-    mediaType: r.media_type,
-    title: r.title ?? r.name ?? "Untitled",
-    year: extractYear(r.release_date ?? r.first_air_date),
-    rating: r.vote_average,
-    posterUrl: img(r.poster_path, POSTER_SIZE),
-    backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-    overview: r.overview ?? "",
-  };
+  return toMediaItem(r.media_type, r);
 };
 
 export const fromMulti = (r: TmdbMultiSearchResult): SearchItem | null => {
-  if (r.media_type === "person") {
-    return {
-      id: r.id,
-      mediaType: "person",
-      name: r.name ?? r.title ?? "Unknown",
-      department: r.known_for_department ?? "Acting",
-      profileUrl: img(r.profile_path, PROFILE_SIZE),
-      knownFor: (r.known_for ?? [])
-        .map((k) => k.title ?? k.name)
-        .filter((t): t is string => Boolean(t))
-        .slice(0, 3),
-    };
-  }
-  if (r.media_type === "movie" || r.media_type === "tv") {
-    return {
-      id: r.id,
-      mediaType: r.media_type,
-      title: r.title ?? r.name ?? "Untitled",
-      year: extractYear(r.release_date ?? r.first_air_date),
-      rating: r.vote_average ?? 0,
-      posterUrl: img(r.poster_path, POSTER_SIZE),
-      backdropUrl: img(r.backdrop_path, BACKDROP_SIZE),
-      overview: r.overview ?? "",
-    };
-  }
+  if (r.media_type === "person") return toPersonItem(r);
+  if (r.media_type === "movie" || r.media_type === "tv") return toMediaItem(r.media_type, r);
   return null;
 };
 
 // The per-type `/search/person` endpoint returns the same person fields
 // `fromMulti`'s person branch reads, so this is a thin extraction to the shared
 // `PersonItem` shape rather than new shaping logic.
-export const fromPerson = (p: TmdbPersonSearchResult): PersonItem => ({
-  id: p.id,
-  mediaType: "person",
-  name: p.name,
-  department: p.known_for_department ?? "Acting",
-  profileUrl: img(p.profile_path, PROFILE_SIZE),
-  knownFor: (p.known_for ?? [])
-    .map((k) => k.title ?? k.name)
-    .filter((t): t is string => Boolean(t))
-    .slice(0, 3),
-});
+export const fromPerson = (p: TmdbPersonSearchResult): PersonItem => toPersonItem(p);
 
 const SIMILAR_LIMIT = 18;
 
@@ -382,7 +388,11 @@ export const rankSimilar = (
   const seen = new Set<number>();
   const pool = items
     .filter((item) => item.posterUrl)
-    .filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)));
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
   if (pool.length <= 1) return pool.slice(0, SIMILAR_LIMIT);
 
   const lastIndex = pool.length - 1;
@@ -472,6 +482,55 @@ export const shapeReviews = (reviews: TmdbReviewsResponse | null): Review[] =>
 const seasonsLabel = (seasons: number | undefined): string | null =>
   seasons ? `${seasons} season${seasons === 1 ? "" : "s"}` : null;
 
+/**
+ * The ~18 fields `shapeMovie` and `shapeTv` build identically. Taken as an
+ * options object (not positional) so the shared inputs cannot be transposed, and
+ * spread into each detail shaper so the common body is defined once. The
+ * type-specific fields (mediaType, title, year, runtime, directors, writers, and
+ * the movie `collection` / TV extras) stay in their respective shaper.
+ */
+interface MediaCommonInput {
+  id: number;
+  tagline: string | undefined;
+  overview: string | undefined;
+  genres: { id: number; name: string }[];
+  posterPath: string | null;
+  backdropPath: string | null;
+  voteAverage: number;
+  voteCount: number;
+  status: string;
+  credits: TmdbCredits | null;
+  videos: TmdbVideosResponse | null;
+  providers: TmdbWatchProviders | null;
+  ratings: ExternalRating[];
+  ratingsStatus: MediaRatingsStatus;
+  awards: string | null;
+  imdbId: string | undefined;
+  similar: MediaItem[];
+  reviews: Review[];
+}
+
+const shapeMediaCommon = (input: MediaCommonInput) => ({
+  id: input.id,
+  tagline: input.tagline ?? "",
+  overview: input.overview ?? "",
+  genres: input.genres.map((g) => ({ id: g.id, name: g.name })),
+  posterUrl: img(input.posterPath, DETAIL_POSTER_SIZE),
+  backdropUrl: img(input.backdropPath, BACKDROP_SIZE),
+  tmdbRating: input.voteAverage,
+  tmdbVotes: input.voteCount,
+  status: input.status,
+  cast: mapCast(input.credits),
+  trailerUrl: firstTrailerUrl(input.videos),
+  whereToWatch: mapProviders(input.providers),
+  ratings: input.ratings,
+  ratingsStatus: input.ratingsStatus,
+  awards: input.awards,
+  imdbId: input.imdbId,
+  similar: input.similar,
+  reviews: input.reviews,
+});
+
 export const shapeMovie = (
   d: TmdbMovieDetails,
   credits: TmdbCredits | null,
@@ -484,30 +543,32 @@ export const shapeMovie = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  id: d.id,
+  ...shapeMediaCommon({
+    id: d.id,
+    tagline: d.tagline,
+    overview: d.overview,
+    genres: d.genres,
+    posterPath: d.poster_path,
+    backdropPath: d.backdrop_path,
+    voteAverage: d.vote_average,
+    voteCount: d.vote_count,
+    status: d.status,
+    credits,
+    videos,
+    providers,
+    ratings,
+    ratingsStatus,
+    awards,
+    imdbId,
+    similar,
+    reviews,
+  }),
   mediaType: "movie",
   title: d.title,
-  tagline: d.tagline ?? "",
   year: extractYear(d.release_date),
-  overview: d.overview ?? "",
   runtime: d.runtime ? `${d.runtime} min` : null,
-  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(d.poster_path, "w500"),
-  backdropUrl: img(d.backdrop_path, "w1280"),
-  tmdbRating: d.vote_average,
-  tmdbVotes: d.vote_count,
-  status: d.status,
-  cast: mapCast(credits),
   directors: crewCredits(credits, ["Director"]),
   writers: crewCredits(credits, ["Screenplay", "Writer", "Story"]),
-  trailerUrl: firstTrailerUrl(videos),
-  whereToWatch: mapProviders(providers),
-  ratings,
-  ratingsStatus,
-  awards,
-  imdbId,
-  similar,
-  reviews,
   collection: d.belongs_to_collection
     ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name }
     : null,
@@ -525,34 +586,36 @@ export const shapeTv = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  id: d.id,
+  ...shapeMediaCommon({
+    id: d.id,
+    tagline: d.tagline,
+    overview: d.overview,
+    genres: d.genres,
+    posterPath: d.poster_path,
+    backdropPath: d.backdrop_path,
+    voteAverage: d.vote_average,
+    voteCount: d.vote_count,
+    status: d.status,
+    credits,
+    videos,
+    providers,
+    ratings,
+    ratingsStatus,
+    awards,
+    imdbId,
+    similar,
+    reviews,
+  }),
   mediaType: "tv",
   title: d.name,
-  tagline: d.tagline ?? "",
   year: extractYear(d.first_air_date),
-  overview: d.overview ?? "",
   runtime: d.episode_run_time?.[0] ? `${d.episode_run_time[0]} min` : null,
-  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(d.poster_path, "w500"),
-  backdropUrl: img(d.backdrop_path, "w1280"),
-  tmdbRating: d.vote_average,
-  tmdbVotes: d.vote_count,
-  status: d.status,
-  cast: mapCast(credits),
   directors: (d.created_by ?? []).map((c) => ({ id: c.id, name: c.name })),
   writers: [],
-  trailerUrl: firstTrailerUrl(videos),
-  whereToWatch: mapProviders(providers),
-  ratings,
-  ratingsStatus,
-  awards,
   seasons: d.number_of_seasons,
   episodes: d.number_of_episodes,
   networks: (d.networks ?? []).map((n) => n.name),
   seasonsLabel: seasonsLabel(d.number_of_seasons),
-  imdbId,
-  similar,
-  reviews,
 });
 
 /**
@@ -575,8 +638,8 @@ export const shapeCollection = (d: TmdbCollectionDetails): CollectionDetail => {
     id: d.id,
     name: d.name,
     overview: d.overview ?? "",
-    posterUrl: img(d.poster_path, "w500"),
-    backdropUrl: img(d.backdrop_path, "w1280"),
+    posterUrl: img(d.poster_path, DETAIL_POSTER_SIZE),
+    backdropUrl: img(d.backdrop_path, BACKDROP_SIZE),
     parts,
   };
 };
@@ -680,9 +743,12 @@ export const shapePerson = (
   for (const c of credits.crew ?? [])
     add(c, (c.department ?? "").trim() || "Crew", (c.job ?? "").trim());
 
+  const departmentSeparator = (department: string): string =>
+    department === DEPT_ACTING ? " / " : ", ";
+
   const filmography: FilmographySection[] = Array.from(byDepartment.entries())
     .map(([department, group]) => {
-      const separator = department === DEPT_ACTING ? " / " : ", ";
+      const separator = departmentSeparator(department);
       const sectionCredits = Array.from(group.values())
         // Newest first; entries with no date ("") sort to the bottom.
         .sort((a, b) => b.date.localeCompare(a.date))
@@ -693,34 +759,25 @@ export const shapePerson = (
 
   // "Known for": most popular titles by vote count, de-duped across cast + crew,
   // limited to ones with a poster so the highlights row stays visually clean.
-  const bestById = new Map<number, { credit: PersonCredit; voteCount: number }>();
-  const consider = (c: TmdbCombinedCredit, role: string): void => {
-    if (!isMovieOrTv(c) || !c.poster_path) return;
-    const voteCount = c.vote_count ?? 0;
-    const existing = bestById.get(c.id);
-    if (existing && existing.voteCount >= voteCount) return;
-    bestById.set(c.id, {
-      voteCount,
-      credit: {
-        id: c.id,
-        mediaType: c.media_type,
-        title: creditTitle(c),
-        year: extractYear(creditDate(c)),
-        rating: c.vote_average ?? 0,
-        posterUrl: img(c.poster_path, POSTER_SIZE),
-        backdropUrl: img(c.backdrop_path, BACKDROP_SIZE),
-        overview: "",
-        role,
-      },
-    });
-  };
-  for (const c of credits.cast ?? []) consider(c, (c.character ?? "").trim());
-  for (const c of credits.crew ?? []) consider(c, (c.job ?? "").trim());
+  // Derived from the accumulators already built above rather than a second
+  // traversal: filmography de-dupes within a department, so flatten across
+  // departments, keep the highest-voted entry per id (departments are inserted
+  // cast-first, so a tie keeps the acting credit), drop poster-less entries.
+  const bestById = new Map<number, CreditAccum & { separator: string }>();
+  for (const [department, group] of byDepartment) {
+    const separator = departmentSeparator(department);
+    for (const accum of group.values()) {
+      if (!accum.posterUrl) continue;
+      const existing = bestById.get(accum.id);
+      if (existing && existing.voteCount >= accum.voteCount) continue;
+      bestById.set(accum.id, { ...accum, separator });
+    }
+  }
 
   const knownFor = Array.from(bestById.values())
     .sort((a, b) => b.voteCount - a.voteCount)
     .slice(0, KNOWN_FOR_LIMIT)
-    .map((entry) => entry.credit);
+    .map((accum) => toPersonCredit(accum, accum.separator));
 
   return {
     id: details.id,

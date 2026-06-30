@@ -192,7 +192,7 @@ export const createTmdbClient = (
   };
 
   const getMovieCredits = async (movieId: number): Promise<TmdbCredits> => {
-    return request<TmdbCredits>(`movie/${movieId}/credits`);
+    return request<TmdbCredits>(mediaPath("movie", movieId, "credits"));
   };
 
   const getTvCredits = async (tvId: number): Promise<TmdbCredits> => {

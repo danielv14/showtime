@@ -132,9 +132,11 @@ export const filterCrewByDepartment = (crew: TmdbCrewMember[], department: strin
  */
 export const crewByJob = (crew: TmdbCrewMember[] | undefined, jobs: string[]): TmdbCrewMember[] => {
   const seen = new Set<number>();
-  return filterCrewByJob(crew ?? [], jobs).filter((member) =>
-    seen.has(member.id) ? false : (seen.add(member.id), true),
-  );
+  return filterCrewByJob(crew ?? [], jobs).filter((member) => {
+    if (seen.has(member.id)) return false;
+    seen.add(member.id);
+    return true;
+  });
 };
 
 /**
