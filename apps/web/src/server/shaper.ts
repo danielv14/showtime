@@ -5,10 +5,9 @@ import {
   extractYear,
   formatReview,
   formatWatchProviders,
-  NA,
   selectProviderRegion,
   selectTrailerUrl,
-  type OmdbEpisodeDetails,
+  type TmdbEpisodeDetails,
   type TmdbMovieSearchResult,
   type TmdbTvSearchResult,
   type TmdbTrendingResult,
@@ -754,27 +753,18 @@ export const shapeEpisodeRatings = (seasons: OmdbSeasonResponse[]): EpisodeRatin
   return { seasons: shaped, maxEpisodes };
 };
 
-/** OMDB returns "N/A" or "" for fields it lacks; collapse both to a clean null. */
-const cleanText = (value: string | undefined): string | null => {
-  const trimmed = (value ?? "").trim();
-  return trimmed && trimmed !== NA ? trimmed : null;
-};
-
-/** Shape an OMDB episode response into the on-demand episode-detail UI shape. */
-export const shapeEpisodeDetail = (omdb: OmdbEpisodeDetails): EpisodeDetail => {
-  const cast = cleanText(omdb.Actors);
-  return {
-    season: Number.parseInt(omdb.Season, 10),
-    episode: Number.parseInt(omdb.Episode, 10),
-    title: omdb.Title,
-    airDate: cleanText(omdb.Released),
-    rating: parseRating(omdb.imdbRating),
-    plot: cleanText(omdb.Plot),
-    cast: cast
-      ? cast
-          .split(",")
-          .map((name) => name.trim())
-          .filter(Boolean)
-      : [],
-  };
-};
+/**
+ * Shape a TMDB episode response into the on-demand episode-detail UI shape.
+ * TMDB has no per-request daily cap (unlike OMDB), so this powers the
+ * open-an-episode fetch; cast is the episode's guest stars. The per-episode IMDb
+ * score in the list/heatmap still comes from OMDB via the streamed ratings.
+ */
+export const shapeEpisodeDetail = (episode: TmdbEpisodeDetails): EpisodeDetail => ({
+  season: episode.season_number,
+  episode: episode.episode_number,
+  title: episode.name,
+  airDate: episode.air_date || null,
+  rating: episode.vote_average > 0 ? episode.vote_average : null,
+  plot: episode.overview.trim() ? episode.overview : null,
+  cast: episode.guest_stars.map((star) => star.name).filter(Boolean),
+});

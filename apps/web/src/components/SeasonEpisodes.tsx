@@ -42,7 +42,7 @@ const DetailLoading = () => (
 const DetailError = () => (
   <div className="flex items-center gap-2 text-xs text-rose-400">
     <AlertCircle className="h-3.5 w-3.5" />
-    Could not load episode details. Try again.
+    Episode details are temporarily unavailable.
   </div>
 );
 
@@ -72,11 +72,11 @@ const EpisodeDetailBody = ({ detail }: { detail: EpisodeDetail }) => (
  * change so a slow response cannot land on the wrong row.
  */
 const EpisodeDetailPanel = ({
-  seriesId,
+  tvId,
   season,
   episode,
 }: {
-  seriesId: string;
+  tvId: number;
   season: number;
   episode: number;
 }) => {
@@ -89,7 +89,7 @@ const EpisodeDetailPanel = ({
     setState({ status: "loading" });
     const load = async () => {
       try {
-        const detail = await getEpisodeDetail({ data: { seriesId, season, episode } });
+        const detail = await getEpisodeDetail({ data: { tvId, season, episode } });
         if (active) setState({ status: "ready", detail });
       } catch {
         if (active) setState({ status: "error" });
@@ -99,7 +99,7 @@ const EpisodeDetailPanel = ({
     return () => {
       active = false;
     };
-  }, [seriesId, season, episode]);
+  }, [tvId, season, episode]);
 
   return (
     <div className="border-t border-white/5 px-3 py-3">
@@ -113,13 +113,13 @@ const EpisodeDetailPanel = ({
 const EpisodeRow = ({
   episode,
   season,
-  seriesId,
+  tvId,
   open,
   onToggle,
 }: {
   episode: EpisodeRating;
   season: number;
-  seriesId: string | undefined;
+  tvId: number;
   open: boolean;
   onToggle: () => void;
 }) => (
@@ -128,8 +128,7 @@ const EpisodeRow = ({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      disabled={!seriesId}
-      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent"
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-white/[0.04]"
     >
       <span className="w-8 shrink-0 text-center text-sm font-semibold tabular-nums text-zinc-500">
         {episode.episode}
@@ -141,15 +140,11 @@ const EpisodeRow = ({
         ) : null}
       </span>
       <RatingBadge rating={episode.rating} />
-      {seriesId ? (
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      ) : null}
+      <ChevronDown
+        className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
+      />
     </button>
-    {open && seriesId ? (
-      <EpisodeDetailPanel seriesId={seriesId} season={season} episode={episode.episode} />
-    ) : null}
+    {open ? <EpisodeDetailPanel tvId={tvId} season={season} episode={episode.episode} /> : null}
   </li>
 );
 
@@ -185,13 +180,7 @@ const SeasonPicker = ({
   </div>
 );
 
-const EpisodeList = ({
-  data,
-  seriesId,
-}: {
-  data: EpisodeRatingsData;
-  seriesId: string | undefined;
-}) => {
+const EpisodeList = ({ data, tvId }: { data: EpisodeRatingsData; tvId: number }) => {
   // Default to the first available season; with season gaps this is whatever the
   // shaped data leads with, not necessarily season 1.
   const [selectedSeason, setSelectedSeason] = useState(data.seasons[0]?.season ?? 0);
@@ -221,7 +210,7 @@ const EpisodeList = ({
               key={key}
               episode={episode}
               season={season.season}
-              seriesId={seriesId}
+              tvId={tvId}
               open={openKey === key}
               onToggle={() => setOpenKey((current) => (current === key ? null : key))}
             />
@@ -251,15 +240,15 @@ const Empty = () => (
  */
 export const SeasonEpisodesContent = ({
   data,
-  seriesId,
+  tvId,
 }: {
   data: EpisodeRatingsData | null;
-  seriesId: string | undefined;
+  tvId: number;
 }) => {
   if (!data || data.seasons.length === 0) {
     return <Empty />;
   }
-  return <EpisodeList data={data} seriesId={seriesId} />;
+  return <EpisodeList data={data} tvId={tvId} />;
 };
 
 /**
@@ -268,17 +257,17 @@ export const SeasonEpisodesContent = ({
  * section streams server-side alongside the heatmap instead of popping in after
  * client hydration. Listing a season's episodes (number, title, air date, IMDb
  * rating) costs no extra fetch; opening an individual episode is the only thing
- * that triggers a new OMDB call, via `getEpisodeDetail`, for the plot and cast.
+ * that triggers a new fetch, via `getEpisodeDetail` (TMDB), for the plot and
+ * guest stars.
  *
- * `seriesId` (the IMDb id) is what the per-episode fetch needs; when it is
- * absent the list still renders, episodes just are not expandable.
+ * `tvId` (the TMDB id) is what the per-episode fetch needs.
  */
 export const SeasonEpisodes = ({
   ratings,
-  seriesId,
+  tvId,
 }: {
   ratings: Promise<EpisodeRatingsData | null>;
-  seriesId: string | undefined;
+  tvId: number;
 }) => (
   <section>
     <div>
@@ -287,7 +276,7 @@ export const SeasonEpisodes = ({
     </div>
     <div className="mt-4">
       <Await promise={ratings} fallback={<Loading />}>
-        {(data) => <SeasonEpisodesContent data={data} seriesId={seriesId} />}
+        {(data) => <SeasonEpisodesContent data={data} tvId={tvId} />}
       </Await>
     </div>
   </section>

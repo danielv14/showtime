@@ -60,6 +60,25 @@ describe("createTmdbClient through a fake HttpClient", () => {
     expect(fake.requests[0]?.searchParams).toEqual({ page: 3 });
   });
 
+  it("builds the nested episode-details endpoint path", async () => {
+    const fake = createFakeHttpClient(() => ({
+      id: 62085,
+      name: "Pilot",
+      overview: "A chemistry teacher.",
+      air_date: "2008-01-20",
+      episode_number: 1,
+      season_number: 1,
+      vote_average: 8.2,
+      guest_stars: [],
+    }));
+    const client = createTmdbClient("test-key", fake);
+
+    const episode = await client.getTvEpisodeDetails(1396, 1, 1);
+
+    expect(fake.requests[0]?.endpoint).toBe("tv/1396/season/1/episode/1");
+    expect(episode.name).toBe("Pilot");
+  });
+
   it("surfaces a transport failure as TmdbApiError with statusCode + endpoint", async () => {
     const fake = createFakeHttpClient(failWith(401));
     const client = createTmdbClient("bad-key", fake);

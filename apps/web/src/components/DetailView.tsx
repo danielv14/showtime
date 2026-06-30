@@ -194,7 +194,7 @@ export const DetailView = ({
 
         {detail.mediaType === "tv" && ratings ? (
           <>
-            <SeasonEpisodes ratings={ratings} seriesId={detail.imdbId} />
+            <SeasonEpisodes ratings={ratings} tvId={detail.id} />
             <EpisodeRatings ratings={ratings} />
           </>
         ) : null}

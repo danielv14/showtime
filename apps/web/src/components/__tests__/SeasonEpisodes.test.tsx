@@ -15,6 +15,8 @@ vi.mock("../../server/media.js", () => ({
 // assertions stay synchronous and don't depend on Suspense resolution.
 const { SeasonEpisodesContent } = await import("../SeasonEpisodes.js");
 
+const TV_ID = 1396;
+
 const ratingsData: EpisodeRatingsData = {
   maxEpisodes: 2,
   seasons: [
@@ -38,7 +40,7 @@ const episodeDetail = (overrides: Partial<EpisodeDetail> = {}): EpisodeDetail =>
   season: 1,
   episode: 1,
   title: "Pilot",
-  airDate: "20 Jan 2008",
+  airDate: "2008-01-20",
   rating: 8.4,
   plot: "A high school chemistry teacher turns to cooking meth.",
   cast: ["Bryan Cranston", "Aaron Paul"],
@@ -51,7 +53,7 @@ describe("SeasonEpisodes", () => {
   });
 
   it("lists the first season's episodes from the streamed data, with number, title, air date and rating", () => {
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
 
     const row = screen.getByText("Pilot").closest("li");
     expect(row).not.toBeNull();
@@ -65,12 +67,12 @@ describe("SeasonEpisodes", () => {
   });
 
   it("shows 'Not rated' for an episode IMDb has no score for", () => {
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
     expect(screen.getByText("Not rated")).toBeTruthy();
   });
 
   it("switches the listed episodes when another season is picked", () => {
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Season 2" }));
 
@@ -78,9 +80,9 @@ describe("SeasonEpisodes", () => {
     expect(screen.queryByText("Pilot")).toBeNull();
   });
 
-  it("fetches and shows plot and cast when an episode is opened", async () => {
+  it("fetches and shows plot and guest stars (by TMDB id) when an episode is opened", async () => {
     getEpisodeDetail.mockResolvedValue(episodeDetail());
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
 
@@ -89,7 +91,7 @@ describe("SeasonEpisodes", () => {
     ).toBeTruthy();
     expect(screen.getByText("Bryan Cranston, Aaron Paul")).toBeTruthy();
     expect(getEpisodeDetail).toHaveBeenCalledWith({
-      data: { seriesId: "tt0903747", season: 1, episode: 1 },
+      data: { tvId: TV_ID, season: 1, episode: 1 },
     });
   });
 
@@ -100,7 +102,7 @@ describe("SeasonEpisodes", () => {
         resolve = r;
       }),
     );
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
     expect(await screen.findByText(/Loading episode details/)).toBeTruthy();
@@ -111,19 +113,19 @@ describe("SeasonEpisodes", () => {
 
   it("shows an error state when the episode detail fetch fails", async () => {
     getEpisodeDetail.mockRejectedValue(new Error("network"));
-    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
-    expect(await screen.findByText(/Could not load episode details/)).toBeTruthy();
+    expect(await screen.findByText(/temporarily unavailable/)).toBeTruthy();
   });
 
   it("renders without breaking when there is no season data", () => {
-    render(<SeasonEpisodesContent data={{ seasons: [], maxEpisodes: 0 }} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={{ seasons: [], maxEpisodes: 0 }} tvId={TV_ID} />);
     expect(screen.getByText(/No season data available/)).toBeTruthy();
   });
 
   it("renders the empty state when the streamed ratings resolved to null", () => {
-    render(<SeasonEpisodesContent data={null} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={null} tvId={TV_ID} />);
     expect(screen.getByText(/No season data available/)).toBeTruthy();
   });
 
@@ -138,17 +140,9 @@ describe("SeasonEpisodes", () => {
         },
       ],
     };
-    render(<SeasonEpisodesContent data={gapData} seriesId="tt0903747" />);
+    render(<SeasonEpisodesContent data={gapData} tvId={TV_ID} />);
 
     expect(screen.getByText("Late Start")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Season 3", selected: true })).toBeTruthy();
-  });
-
-  it("keeps episodes non-expandable when the series IMDb id is missing", () => {
-    render(<SeasonEpisodesContent data={ratingsData} seriesId={undefined} />);
-
-    fireEvent.click(screen.getByText("Pilot"));
-    expect(getEpisodeDetail).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Loading episode details/)).toBeNull();
   });
 });
