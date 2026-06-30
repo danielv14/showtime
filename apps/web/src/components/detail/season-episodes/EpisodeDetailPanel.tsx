@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { getEpisodeDetail, type EpisodeDetail } from "#/server/media";
 
@@ -35,11 +35,12 @@ const EpisodeDetailBody = ({ detail }: { detail: EpisodeDetail }) => (
 );
 
 /**
- * Loads and renders the on-demand detail (plot, cast) for one episode. Runs the
- * fetch in an effect keyed to the episode so reopening a different episode
- * refetches, and tracks loading/error/data locally so each open row owns its
- * own state. The effect guards against setting state after unmount/episode
- * change so a slow response cannot land on the wrong row.
+ * Loads and renders the on-demand detail (plot, cast) for one episode via
+ * `useQuery`, keyed to the series/season/episode so each episode owns its own
+ * cache entry. The query key handles the race a slow response would otherwise
+ * create, and the cache means reopening an episode shows its detail instantly
+ * instead of refetching. Episode detail is effectively immutable, so it never
+ * goes stale within a session.
  */
 export const EpisodeDetailPanel = ({
   tvId,
@@ -50,32 +51,17 @@ export const EpisodeDetailPanel = ({
   season: number;
   episode: number;
 }) => {
-  const [state, setState] = useState<
-    { status: "loading" } | { status: "error" } | { status: "ready"; detail: EpisodeDetail }
-  >({ status: "loading" });
-
-  useEffect(() => {
-    let active = true;
-    setState({ status: "loading" });
-    const load = async () => {
-      try {
-        const detail = await getEpisodeDetail({ data: { tvId, season, episode } });
-        if (active) setState({ status: "ready", detail });
-      } catch {
-        if (active) setState({ status: "error" });
-      }
-    };
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [tvId, season, episode]);
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["episode-detail", tvId, season, episode],
+    queryFn: () => getEpisodeDetail({ data: { tvId, season, episode } }),
+    staleTime: Infinity,
+  });
 
   return (
     <div className="border-t border-white/5 px-3 py-3">
-      {state.status === "loading" ? <DetailLoading /> : null}
-      {state.status === "error" ? <DetailError /> : null}
-      {state.status === "ready" ? <EpisodeDetailBody detail={state.detail} /> : null}
+      {isPending ? <DetailLoading /> : null}
+      {isError ? <DetailError /> : null}
+      {data ? <EpisodeDetailBody detail={data} /> : null}
     </div>
   );
 };
