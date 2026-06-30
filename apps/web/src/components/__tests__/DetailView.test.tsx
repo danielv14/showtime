@@ -1,8 +1,15 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { screen, fireEvent } from "@testing-library/react";
-import { DetailView } from "../DetailView.js";
 import type { MediaDetail } from "../../server/media.js";
 import { renderWithRouter } from "../../test-utils.js";
+
+// `DetailView` now renders `SeasonEpisodes`, which imports a server function
+// from `../server/media`; that module reaches into `cloudflare:workers` (via the
+// cache), which can't load under jsdom. These tests render movie details and
+// never exercise the episode fetch, so stub the server module's runtime surface.
+vi.mock("../../server/media.js", () => ({ getEpisodeDetail: vi.fn() }));
+
+const { DetailView } = await import("../DetailView.js");
 
 const detail = (overrides: Partial<MediaDetail>): MediaDetail => ({
   id: 603,

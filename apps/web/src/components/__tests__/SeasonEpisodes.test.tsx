@@ -1,0 +1,154 @@
+import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import type { EpisodeDetail, EpisodeRatingsData } from "../../server/media.js";
+
+// `../../server/media` reaches into `cloudflare:workers` (via the cache), which
+// can't load under jsdom, and we want to drive the on-demand episode fetch
+// ourselves. Mock the module down to the one function the component calls.
+const getEpisodeDetail = vi.fn();
+vi.mock("../../server/media.js", () => ({
+  getEpisodeDetail: (...args: unknown[]) => getEpisodeDetail(...args),
+}));
+
+// `SeasonEpisodes` wraps `SeasonEpisodesContent` in `Await` for SSR streaming.
+// We exercise the content view directly with already-resolved data so the
+// assertions stay synchronous and don't depend on Suspense resolution.
+const { SeasonEpisodesContent } = await import("../SeasonEpisodes.js");
+
+const ratingsData: EpisodeRatingsData = {
+  maxEpisodes: 2,
+  seasons: [
+    {
+      season: 1,
+      average: 8.5,
+      episodes: [
+        { episode: 1, title: "Pilot", rating: 8.4, airDate: "20 Jan 2008" },
+        { episode: 2, title: "Cat's in the Bag…", rating: null, airDate: "27 Jan 2008" },
+      ],
+    },
+    {
+      season: 2,
+      average: 9.1,
+      episodes: [{ episode: 1, title: "Seven Thirty-Seven", rating: 9.2, airDate: "08 Mar 2009" }],
+    },
+  ],
+};
+
+const episodeDetail = (overrides: Partial<EpisodeDetail> = {}): EpisodeDetail => ({
+  season: 1,
+  episode: 1,
+  title: "Pilot",
+  airDate: "20 Jan 2008",
+  rating: 8.4,
+  plot: "A high school chemistry teacher turns to cooking meth.",
+  cast: ["Bryan Cranston", "Aaron Paul"],
+  ...overrides,
+});
+
+describe("SeasonEpisodes", () => {
+  beforeEach(() => {
+    getEpisodeDetail.mockReset();
+  });
+
+  it("lists the first season's episodes from the streamed data, with number, title, air date and rating", () => {
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+
+    const row = screen.getByText("Pilot").closest("li");
+    expect(row).not.toBeNull();
+    const inRow = within(row as HTMLElement);
+    expect(inRow.getByText("1")).toBeTruthy();
+    expect(inRow.getByText(/Jan/)).toBeTruthy();
+    expect(inRow.getByText("8.4")).toBeTruthy();
+
+    // Listing the episodes must not have triggered any per-episode fetch.
+    expect(getEpisodeDetail).not.toHaveBeenCalled();
+  });
+
+  it("shows 'Not rated' for an episode IMDb has no score for", () => {
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+    expect(screen.getByText("Not rated")).toBeTruthy();
+  });
+
+  it("switches the listed episodes when another season is picked", () => {
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Season 2" }));
+
+    expect(screen.getByText("Seven Thirty-Seven")).toBeTruthy();
+    expect(screen.queryByText("Pilot")).toBeNull();
+  });
+
+  it("fetches and shows plot and cast when an episode is opened", async () => {
+    getEpisodeDetail.mockResolvedValue(episodeDetail());
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+
+    fireEvent.click(screen.getByText("Pilot"));
+
+    expect(
+      await screen.findByText("A high school chemistry teacher turns to cooking meth."),
+    ).toBeTruthy();
+    expect(screen.getByText("Bryan Cranston, Aaron Paul")).toBeTruthy();
+    expect(getEpisodeDetail).toHaveBeenCalledWith({
+      data: { seriesId: "tt0903747", season: 1, episode: 1 },
+    });
+  });
+
+  it("shows a loading state while the episode detail is in flight", async () => {
+    let resolve: (detail: EpisodeDetail) => void = () => {};
+    getEpisodeDetail.mockReturnValue(
+      new Promise<EpisodeDetail>((r) => {
+        resolve = r;
+      }),
+    );
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+
+    fireEvent.click(screen.getByText("Pilot"));
+    expect(await screen.findByText(/Loading episode details/)).toBeTruthy();
+
+    resolve(episodeDetail());
+    await waitFor(() => expect(screen.queryByText(/Loading episode details/)).toBeNull());
+  });
+
+  it("shows an error state when the episode detail fetch fails", async () => {
+    getEpisodeDetail.mockRejectedValue(new Error("network"));
+    render(<SeasonEpisodesContent data={ratingsData} seriesId="tt0903747" />);
+
+    fireEvent.click(screen.getByText("Pilot"));
+    expect(await screen.findByText(/Could not load episode details/)).toBeTruthy();
+  });
+
+  it("renders without breaking when there is no season data", () => {
+    render(<SeasonEpisodesContent data={{ seasons: [], maxEpisodes: 0 }} seriesId="tt0903747" />);
+    expect(screen.getByText(/No season data available/)).toBeTruthy();
+  });
+
+  it("renders the empty state when the streamed ratings resolved to null", () => {
+    render(<SeasonEpisodesContent data={null} seriesId="tt0903747" />);
+    expect(screen.getByText(/No season data available/)).toBeTruthy();
+  });
+
+  it("defaults to the first available season even when season numbering is irregular", () => {
+    const gapData: EpisodeRatingsData = {
+      maxEpisodes: 1,
+      seasons: [
+        {
+          season: 3,
+          average: 7.0,
+          episodes: [{ episode: 1, title: "Late Start", rating: 7.0, airDate: "01 Jan 2012" }],
+        },
+      ],
+    };
+    render(<SeasonEpisodesContent data={gapData} seriesId="tt0903747" />);
+
+    expect(screen.getByText("Late Start")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Season 3", selected: true })).toBeTruthy();
+  });
+
+  it("keeps episodes non-expandable when the series IMDb id is missing", () => {
+    render(<SeasonEpisodesContent data={ratingsData} seriesId={undefined} />);
+
+    fireEvent.click(screen.getByText("Pilot"));
+    expect(getEpisodeDetail).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Loading episode details/)).toBeNull();
+  });
+});

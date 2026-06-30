@@ -8,6 +8,7 @@ import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
 import { Reviews } from "./Reviews";
 import { TrailerPlayer } from "./TrailerPlayer";
+import { SeasonEpisodes } from "./SeasonEpisodes";
 import { WhereToWatch } from "./WhereToWatch";
 
 const ratingAccent: Record<string, string> = {
@@ -191,7 +192,12 @@ export const DetailView = ({
           <WhereToWatch data={detail.whereToWatch} />
         </section>
 
-        {detail.mediaType === "tv" && ratings ? <EpisodeRatings ratings={ratings} /> : null}
+        {detail.mediaType === "tv" && ratings ? (
+          <>
+            <SeasonEpisodes ratings={ratings} seriesId={detail.imdbId} />
+            <EpisodeRatings ratings={ratings} />
+          </>
+        ) : null}
 
         {detail.cast.length > 0 ? (
           <section>
