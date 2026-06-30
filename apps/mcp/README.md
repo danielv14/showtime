@@ -29,9 +29,9 @@ claude mcp add showtime-mcp -- \
 
 ## Tools
 
-The server registers 24 tools, in three groups:
+The server registers 26 tools, in three groups:
 
-- **TMDB-powered**: search, discover, trending, details, credits, recommendations, similar, collections, videos, reviews, now playing, upcoming, airing today, watch providers, people.
+- **TMDB-powered**: search, discover, trending, details, credits, recommendations, similar, collections, videos, reviews, now playing, upcoming, airing today, on the air, genres, watch providers, people.
 - **OMDB-only**: TV series and season/episode lookups.
 - **Hybrid**: e.g. `get_movie`, which merges OMDB ratings into TMDB data.
 
