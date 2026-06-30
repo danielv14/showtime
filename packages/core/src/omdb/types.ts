@@ -83,9 +83,5 @@ export interface OmdbSeasonResponse {
   Response: "True";
 }
 
-export type OmdbDetailsResponse = OmdbMovieDetails | OmdbSeriesDetails | OmdbEpisodeDetails;
-
-export type OmdbResponse = OmdbSearchResponse | OmdbDetailsResponse | OmdbErrorResponse;
-
 export type PlotLength = "short" | "full";
 export type ContentType = "movie" | "series" | "episode";
