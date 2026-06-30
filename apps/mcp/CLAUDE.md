@@ -32,3 +32,15 @@ Requires `OMDB_API_KEY` and `TMDB_API_KEY` in `.env` (see `.env.example`).
 1. Create `src/tools/<name>.ts` exporting a `defineTool({...})`.
 2. Import it and add it to `toolDefinitions` in `src/tools/index.ts`.
 3. Return raw data, or `paginatedResult(apiResponse, data)` when the upstream response carries pagination metadata.
+
+## Testing
+
+`vp test` runs the workspace tests (Vitest, node environment). Tests live in `src/tools/__tests__/`.
+
+The seam under test is the runner: a handler returns a raw payload, a `paginatedResult(...)`, or throws, and `registerTool` shapes that into a success / paginated / error MCP response. So tests drive a tool through the runner rather than calling its handler directly. The harness (`__tests__/harness.ts`) provides:
+
+- `registerTestTool(definition, clients)` — registers the tool against a fake `McpServer` that captures the installed callback, and returns `{ name, invoke(args) }`. `invoke` runs the real runner, so response shaping is exercised end-to-end.
+- `createFakeClients({ tmdb, omdb })` — builds a fake `{ tmdb, omdb }` pair from a partial set of methods. Only stub the methods the tool under test calls; any unstubbed method throws `Unexpected TMDB/OMDB call: <method>`, so a missing or surprise upstream call fails loudly. `tmdb.getImageUrl` defaults to the real pure URL builder. This is the MCP-layer equivalent of core's injectable `HttpClient` seam: inject fakes at the client boundary, no network.
+- `parseSuccess(response)` — `JSON.parse` the success response's text payload back into a value to assert on.
+
+To add coverage for another tool: import it, `registerTestTool` it with `createFakeClients` stubbing only the methods it calls, then assert on `parseSuccess(...)` for a success/paginated case and on `response.isError` + `response.content[0].text` for an error case. Pure helpers like `requireAtLeastOne` / `resolveMedia` are tested directly in `resolvers.test.ts` (they take `clients`, so pass `createFakeClients(...)`).

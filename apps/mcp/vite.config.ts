@@ -5,4 +5,8 @@ export default defineConfig({
   lint: {
     options: { typeAware: true, typeCheck: true },
   },
+  test: {
+    environment: "node",
+    passWithNoTests: true,
+  },
 });
