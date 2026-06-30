@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import type { EpisodeDetail, EpisodeRatingsData } from "../../server/media.js";
+import type {
+  EpisodeDetail,
+  EpisodeRatingsData,
+  EpisodeRatingsResult,
+} from "../../server/media.js";
 
 // `../../server/media` reaches into `cloudflare:workers` (via the cache), which
 // can't load under jsdom, and we want to drive the on-demand episode fetch
@@ -11,7 +15,7 @@ vi.mock("../../server/media.js", () => ({
 }));
 
 // `SeasonEpisodes` wraps `SeasonEpisodesContent` in `Await` for SSR streaming.
-// We exercise the content view directly with already-resolved data so the
+// We exercise the content view directly with an already-resolved result so the
 // assertions stay synchronous and don't depend on Suspense resolution.
 const { SeasonEpisodesContent } = await import("../SeasonEpisodes.js");
 
@@ -36,6 +40,8 @@ const ratingsData: EpisodeRatingsData = {
   ],
 };
 
+const ready = (data: EpisodeRatingsData): EpisodeRatingsResult => ({ status: "ready", data });
+
 const episodeDetail = (overrides: Partial<EpisodeDetail> = {}): EpisodeDetail => ({
   season: 1,
   episode: 1,
@@ -53,7 +59,7 @@ describe("SeasonEpisodes", () => {
   });
 
   it("lists the first season's episodes from the streamed data, with number, title, air date and rating", () => {
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
 
     const row = screen.getByText("Pilot").closest("li");
     expect(row).not.toBeNull();
@@ -67,12 +73,12 @@ describe("SeasonEpisodes", () => {
   });
 
   it("shows 'Not rated' for an episode IMDb has no score for", () => {
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
     expect(screen.getByText("Not rated")).toBeTruthy();
   });
 
   it("switches the listed episodes when another season is picked", () => {
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Season 2" }));
 
@@ -82,7 +88,7 @@ describe("SeasonEpisodes", () => {
 
   it("fetches and shows plot and guest stars (by TMDB id) when an episode is opened", async () => {
     getEpisodeDetail.mockResolvedValue(episodeDetail());
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
 
@@ -102,7 +108,7 @@ describe("SeasonEpisodes", () => {
         resolve = r;
       }),
     );
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
     expect(await screen.findByText(/Loading episode details/)).toBeTruthy();
@@ -113,20 +119,21 @@ describe("SeasonEpisodes", () => {
 
   it("shows an error state when the episode detail fetch fails", async () => {
     getEpisodeDetail.mockRejectedValue(new Error("network"));
-    render(<SeasonEpisodesContent data={ratingsData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(ratingsData)} tvId={TV_ID} />);
 
     fireEvent.click(screen.getByText("Pilot"));
-    expect(await screen.findByText(/temporarily unavailable/)).toBeTruthy();
+    expect(await screen.findByText(/Episode details are temporarily unavailable/)).toBeTruthy();
   });
 
   it("renders without breaking when there is no season data", () => {
-    render(<SeasonEpisodesContent data={{ seasons: [], maxEpisodes: 0 }} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready({ seasons: [], maxEpisodes: 0 })} tvId={TV_ID} />);
     expect(screen.getByText(/No season data available/)).toBeTruthy();
   });
 
-  it("renders the empty state when the streamed ratings resolved to null", () => {
-    render(<SeasonEpisodesContent data={null} tvId={TV_ID} />);
-    expect(screen.getByText(/No season data available/)).toBeTruthy();
+  it("shows a visible 'temporarily unavailable' message when the ratings fetch failed", () => {
+    render(<SeasonEpisodesContent result={{ status: "unavailable" }} tvId={TV_ID} />);
+    expect(screen.getByText(/Episode data is temporarily unavailable/)).toBeTruthy();
+    expect(screen.queryByText(/No season data available/)).toBeNull();
   });
 
   it("defaults to the first available season even when season numbering is irregular", () => {
@@ -140,7 +147,7 @@ describe("SeasonEpisodes", () => {
         },
       ],
     };
-    render(<SeasonEpisodesContent data={gapData} tvId={TV_ID} />);
+    render(<SeasonEpisodesContent result={ready(gapData)} tvId={TV_ID} />);
 
     expect(screen.getByText("Late Start")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Season 3", selected: true })).toBeTruthy();

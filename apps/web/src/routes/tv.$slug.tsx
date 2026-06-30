@@ -26,8 +26,22 @@ export const Route = createFileRoute("/tv/$slug")({
     // page on them. Returning the unawaited promise lets TanStack Start stream
     // it in; the route match owns the promise, so navigating to another series
     // hands down a fresh one and the heatmap can never show stale data.
+    //
+    // A failed fetch (e.g. OMDB rate-limited with nothing cached yet) resolves
+    // to `unavailable` rather than `null` so the UI can say the data is
+    // temporarily unavailable instead of silently rendering an empty section.
+    // The failure is logged so it shows up in Workers Logs.
     const ratings = detail.imdbId
-      ? getEpisodeRatings({ data: detail.imdbId }).catch(() => null)
+      ? getEpisodeRatings({ data: detail.imdbId })
+          .then((data) => ({ status: "ready" as const, data }))
+          .catch((error: unknown) => {
+            console.error(
+              "upstream fetch failed",
+              { fetch: "getEpisodeRatings", imdbId: detail.imdbId },
+              error,
+            );
+            return { status: "unavailable" as const };
+          })
       : null;
     return { detail, ratings };
   },

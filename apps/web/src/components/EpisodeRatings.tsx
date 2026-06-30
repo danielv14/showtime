@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Await } from "@tanstack/react-router";
 import { ChevronDown, Loader2 } from "lucide-react";
-import type { EpisodeRating, EpisodeRatingsData, SeasonRatings } from "../server/media";
+import type {
+  EpisodeRating,
+  EpisodeRatingsData,
+  EpisodeRatingsResult,
+  SeasonRatings,
+} from "../server/media";
 
 /** Cell footprint; the season header and episode cells share the column width. */
 const COL_W = "w-11";
@@ -122,12 +127,18 @@ const Empty = () => (
   <p className="text-sm text-zinc-500">No episode ratings available for this series.</p>
 );
 
+const Unavailable = () => (
+  <p className="text-sm text-zinc-500">
+    Episode ratings are temporarily unavailable. Please try again later.
+  </p>
+);
+
 /**
  * The ratings promise is streamed from the route loader, so it's keyed to the
  * series by the route match. The panel stays collapsed until opened; by then
  * the promise has usually resolved, so `Await` renders without a spinner.
  */
-export const EpisodeRatings = ({ ratings }: { ratings: Promise<EpisodeRatingsData | null> }) => {
+export const EpisodeRatings = ({ ratings }: { ratings: Promise<EpisodeRatingsResult> }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -152,10 +163,12 @@ export const EpisodeRatings = ({ ratings }: { ratings: Promise<EpisodeRatingsDat
       {open ? (
         <div className="mt-4">
           <Await promise={ratings} fallback={<Loading />}>
-            {(data) =>
-              data && data.seasons.length > 0 ? (
+            {(result) =>
+              result.status === "unavailable" ? (
+                <Unavailable />
+              ) : result.data.seasons.length > 0 ? (
                 <div className="space-y-4">
-                  <Heatmap data={data} />
+                  <Heatmap data={result.data} />
                   <Legend />
                 </div>
               ) : (
