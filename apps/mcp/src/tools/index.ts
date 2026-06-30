@@ -18,6 +18,8 @@ import { getVideosTool } from "./get-videos.js";
 import { getNowPlayingTool } from "./get-now-playing.js";
 import { getUpcomingTool } from "./get-upcoming.js";
 import { getAiringTodayTool } from "./get-airing-today.js";
+import { getOnTheAirTool } from "./get-on-the-air.js";
+import { getGenresTool } from "./get-genres.js";
 import { getPersonDetailsTool } from "./get-person-details.js";
 import { multiSearchTool } from "./multi-search.js";
 import { getSimilarTool } from "./get-similar.js";
@@ -50,6 +52,8 @@ const toolDefinitions: AnyToolDefinition[] = [
   getNowPlayingTool,
   getUpcomingTool,
   getAiringTodayTool,
+  getOnTheAirTool,
+  getGenresTool,
   getPersonDetailsTool,
   multiSearchTool,
   getSimilarTool,
