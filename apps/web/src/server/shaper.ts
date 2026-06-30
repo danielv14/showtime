@@ -387,7 +387,11 @@ export const rankSimilar = (
   const seen = new Set<number>();
   const pool = items
     .filter((item) => item.posterUrl)
-    .filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)));
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
   if (pool.length <= 1) return pool.slice(0, SIMILAR_LIMIT);
 
   const lastIndex = pool.length - 1;
