@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { getCollectionDetail } from "../server/media";
-import { CollectionView } from "../components/CollectionView";
+import { CollectionView } from "#/components/collection/CollectionView";
 import { collectionMeta } from "../lib/seo";
 import { parseCollectionId, toCollectionSlug } from "../lib/slug";
 

@@ -2,7 +2,7 @@ import { NA } from "@showtime/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { getHomeData } from "../server/media";
-import { MediaRow } from "../components/MediaRow";
+import { MediaRow } from "#/components/media/MediaRow";
 import { toMediaSlug } from "../lib/slug";
 
 const Home = () => {
