@@ -4,7 +4,7 @@ import {
   type BrowseSort,
   type GenreOption,
 } from "#/server/browse";
-import { buildYearOptions } from "#/lib/year-options";
+import { buildYearOptions, type YearRange } from "#/lib/year-options";
 import { Select, type SelectOption } from "#/components/ui/Select";
 
 const SORT_LABELS: Record<BrowseSort, string> = {
@@ -34,7 +34,7 @@ export const BrowseFilters = ({
   action: string;
   genres: GenreOption[];
   filters: BrowseFiltersState;
-  yearRange: { min: number; max: number };
+  yearRange: YearRange;
 }) => {
   const genreOptions: SelectOption[] = [
     { value: "", label: "All genres" },

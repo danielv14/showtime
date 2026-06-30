@@ -3,6 +3,7 @@ import type { CollectionDetail } from "#/server/media";
 import { MediaGrid } from "#/components/media/MediaGrid";
 import { MediaHero } from "#/components/media/MediaHero";
 import { PosterFrame } from "#/components/media/PosterFrame";
+import { EmptyState } from "#/components/ui/EmptyState";
 
 export const CollectionView = ({ collection }: { collection: CollectionDetail }) => (
   <div>
@@ -38,9 +39,7 @@ export const CollectionView = ({ collection }: { collection: CollectionDetail })
       {collection.parts.length > 0 ? (
         <MediaGrid items={collection.parts} />
       ) : (
-        <p className="py-16 text-center text-sm text-zinc-500">
-          No movies found in this collection.
-        </p>
+        <EmptyState>No movies found in this collection.</EmptyState>
       )}
     </div>
   </div>

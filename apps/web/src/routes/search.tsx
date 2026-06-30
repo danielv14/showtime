@@ -7,6 +7,7 @@ import {
   type SearchSearch,
 } from "../server/search";
 import { SearchView } from "#/components/search/SearchView";
+import { currentYearRange } from "../lib/year-options";
 import { searchMeta } from "../lib/seo";
 
 const SearchPage = () => {
@@ -33,8 +34,7 @@ export const Route = createFileRoute("/search")({
   loader: async ({ deps }) => {
     const filters = normalizeSearchFilters(deps);
     const result = await searchMedia({ data: filters });
-    const currentYear = new Date().getFullYear();
-    return { ...result, filters, yearRange: { min: SEARCH_YEAR_FLOOR, max: currentYear + 1 } };
+    return { ...result, filters, yearRange: currentYearRange(SEARCH_YEAR_FLOOR) };
   },
   head: ({ loaderData }) =>
     loaderData ? { meta: searchMeta(loaderData.query, loaderData.filters.type) } : { meta: [] },
