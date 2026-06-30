@@ -35,8 +35,13 @@ export interface CacheOptions<T> {
  * OMDB daily rate limit: an upstream result is fetched once per key per TTL
  * window, no matter how many page views hit it.
  *
- * If the binding is absent (a context without KV configured) it degrades to
- * calling `fetchFn` directly so the site still works.
+ * KV is strictly best-effort. If the binding is absent (a context without KV
+ * configured) it calls `fetchFn` directly. And if a KV operation *throws* (most
+ * likely the free-tier daily limit, or a transient KV fault), the failure is
+ * logged and swallowed rather than propagated: a read failure falls through to
+ * `fetchFn`, and a write failure still returns the freshly fetched value. The
+ * request always succeeds as long as `fetchFn` does, just without the cache
+ * benefit, so a KV outage can never take the whole page down with a 500.
  */
 export const cached = async <T>(
   key: string,
@@ -48,8 +53,15 @@ export const cached = async <T>(
   const namespacedKey = `${CACHE_VERSION}:${key}`;
 
   if (kv) {
-    const hit = await kv.get<T>(namespacedKey, "json");
-    if (hit !== null) return hit;
+    try {
+      const hit = await kv.get<T>(namespacedKey, "json");
+      if (hit !== null) return hit;
+    } catch (error) {
+      // A read failure must not break the request: fall through and fetch the
+      // value directly. Logged at warn (not error) because it is handled, and
+      // distinct from an `upstream fetch failed`.
+      console.warn("cache read failed", { key: namespacedKey }, error);
+    }
   }
 
   const value = await fetchFn();
@@ -64,9 +76,15 @@ export const cached = async <T>(
       // window is visible in Workers Logs.
       console.info("caching degraded payload", { key: namespacedKey, ttlSeconds: effectiveTtl });
     }
-    await kv.put(namespacedKey, JSON.stringify(value), {
-      expirationTtl: effectiveTtl,
-    });
+    try {
+      await kv.put(namespacedKey, JSON.stringify(value), {
+        expirationTtl: effectiveTtl,
+      });
+    } catch (error) {
+      // A write failure must not break the request either: we already have the
+      // value to return, just without persisting it this time.
+      console.warn("cache write failed", { key: namespacedKey }, error);
+    }
   }
 
   return value;
