@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
-import { extractYear, truncateText } from "@showtime/core";
+import { extractYear, NA, truncateText } from "@showtime/core";
 import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
 
 export const getCollectionTool = defineTool({
@@ -57,7 +57,7 @@ export const getCollectionTool = defineTool({
       tmdbId: movie.id,
       title: movie.title,
       year: extractYear(movie.release_date),
-      releaseDate: movie.release_date || "N/A",
+      releaseDate: movie.release_date || NA,
       overview: truncateText(movie.overview || "", 200),
       tmdbRating: movie.vote_average,
       voteCount: movie.vote_count,

@@ -145,9 +145,13 @@ export const getMovieTool = defineTool({
 
       const directors = crewByJob(tmdbCredits.crew, ["Director"]);
       const writers = [
-        ...filterCrewByJob(tmdbCredits.crew, ["Screenplay", "Writer"]),
-        ...filterCrewByDepartment(tmdbCredits.crew, "Writing"),
-      ].filter((member, index, self) => self.findIndex((m) => m.id === member.id) === index);
+        ...new Map(
+          [
+            ...filterCrewByJob(tmdbCredits.crew, ["Screenplay", "Writer"]),
+            ...filterCrewByDepartment(tmdbCredits.crew, "Writing"),
+          ].map((member) => [member.id, member]),
+        ).values(),
+      ];
       const composers = crewByJob(tmdbCredits.crew, ["Original Music Composer"]);
       const cinematographers = crewByJob(tmdbCredits.crew, ["Director of Photography"]);
 

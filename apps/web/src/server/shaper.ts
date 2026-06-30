@@ -35,6 +35,7 @@ import {
 // testable without crossing the network or cache.
 
 const POSTER_SIZE = "w342";
+const DETAIL_POSTER_SIZE = "w500";
 const BACKDROP_SIZE = "w1280";
 const PROFILE_SIZE = "w185";
 
@@ -514,8 +515,8 @@ const shapeMediaCommon = (input: MediaCommonInput) => ({
   tagline: input.tagline ?? "",
   overview: input.overview ?? "",
   genres: input.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(input.posterPath, "w500"),
-  backdropUrl: img(input.backdropPath, "w1280"),
+  posterUrl: img(input.posterPath, DETAIL_POSTER_SIZE),
+  backdropUrl: img(input.backdropPath, BACKDROP_SIZE),
   tmdbRating: input.voteAverage,
   tmdbVotes: input.voteCount,
   status: input.status,
@@ -637,8 +638,8 @@ export const shapeCollection = (d: TmdbCollectionDetails): CollectionDetail => {
     id: d.id,
     name: d.name,
     overview: d.overview ?? "",
-    posterUrl: img(d.poster_path, "w500"),
-    backdropUrl: img(d.backdrop_path, "w1280"),
+    posterUrl: img(d.poster_path, DETAIL_POSTER_SIZE),
+    backdropUrl: img(d.backdrop_path, BACKDROP_SIZE),
     parts,
   };
 };
