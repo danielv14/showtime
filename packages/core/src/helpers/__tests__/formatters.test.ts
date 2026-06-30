@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vite-plus/test";
 import {
   crewByJob,
+  crewWriters,
+  isWriterCredit,
   extractOmdbRatings,
   formatWatchProvider,
   formatWatchProviders,
@@ -88,6 +90,57 @@ describe("crewByJob", () => {
 
   it("returns an empty array for undefined crew", () => {
     expect(crewByJob(undefined, ["Director"])).toEqual([]);
+  });
+});
+
+describe("isWriterCredit", () => {
+  it("matches the canonical writer jobs", () => {
+    expect(isWriterCredit({ id: 1, job: "Screenplay", department: "Writing" })).toBe(true);
+    expect(isWriterCredit({ id: 2, job: "Writer", department: "Writing" })).toBe(true);
+    expect(isWriterCredit({ id: 3, job: "Story", department: "Writing" })).toBe(true);
+  });
+
+  it("matches any Writing-department credit even with a non-listed job", () => {
+    expect(isWriterCredit({ id: 4, job: "Novel", department: "Writing" })).toBe(true);
+  });
+
+  it("matches a listed job even when department is missing", () => {
+    expect(isWriterCredit({ id: 5, job: "Story" })).toBe(true);
+  });
+
+  it("rejects non-writing credits", () => {
+    expect(isWriterCredit({ id: 6, job: "Director", department: "Directing" })).toBe(false);
+    expect(isWriterCredit({ id: 7, job: "Producer", department: "Production" })).toBe(false);
+    expect(isWriterCredit({ id: 8 })).toBe(false);
+  });
+});
+
+describe("crewWriters", () => {
+  it("unions writer jobs with the Writing department, deduped by id, jobs first", () => {
+    const result = crewWriters([
+      crew({ id: 1, name: "Screenwriter", job: "Screenplay", department: "Writing" }),
+      crew({ id: 2, name: "Editor", job: "Editor", department: "Editing" }),
+      crew({ id: 3, name: "Novelist", job: "Novel", department: "Writing" }),
+      crew({ id: 4, name: "Storyteller", job: "Story", department: "Writing" }),
+    ]);
+    expect(result.map((member) => member.name)).toEqual([
+      "Screenwriter",
+      "Storyteller",
+      "Novelist",
+    ]);
+  });
+
+  it("dedupes a person credited as both a writer job and a Writing department entry", () => {
+    const result = crewWriters([
+      crew({ id: 9, name: "Writer-Director", job: "Writer", department: "Writing" }),
+      crew({ id: 9, name: "Writer-Director", job: "Story", department: "Writing" }),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.job).toBe("Writer");
+  });
+
+  it("returns an empty array for undefined crew", () => {
+    expect(crewWriters(undefined)).toEqual([]);
   });
 });
 
