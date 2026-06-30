@@ -1,16 +1,5 @@
 // TMDB API Response Types
 
-// Configuration
-export interface TmdbConfiguration {
-  images: {
-    base_url: string;
-    secure_base_url: string;
-    poster_sizes: string[];
-    backdrop_sizes: string[];
-    profile_sizes: string[];
-  };
-}
-
 // Search Results
 export interface TmdbMovieSearchResult {
   id: number;
@@ -237,13 +226,6 @@ export interface TmdbFindResponse {
   tv_results: unknown[];
   tv_episode_results: unknown[];
   tv_season_results: unknown[];
-}
-
-// Error response
-export interface TmdbErrorResponse {
-  success: false;
-  status_code: number;
-  status_message: string;
 }
 
 // Trending
