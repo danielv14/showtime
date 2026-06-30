@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Clapperboard } from "lucide-react";
 import { SearchBar } from "#/components/search/SearchBar";
 
-const Header = () => (
+export const Header = () => (
   <header className="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md">
     <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
       <Link
@@ -32,5 +32,3 @@ const Header = () => (
     </div>
   </header>
 );
-
-export default Header;
