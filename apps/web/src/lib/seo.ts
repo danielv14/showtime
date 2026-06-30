@@ -1,6 +1,7 @@
 import { NA } from "@showtime/core";
 import type { MediaDetail, PersonDetail } from "../server/media";
 import type { BrowseFilters } from "../server/browse";
+import type { SearchType } from "../server/search";
 
 const SITE = "Showtime";
 
@@ -100,11 +101,23 @@ export const browseMeta = ({
   ];
 };
 
-/** Title + meta for the search page, reflecting the current query. */
-export const searchMeta = (query: string) => {
-  const title = query ? `“${query}” — Search — ${SITE}` : `Search — ${SITE}`;
+const SEARCH_TYPE_NOUNS: Record<SearchType, string | null> = {
+  all: null,
+  movie: "Movies",
+  tv: "TV Shows",
+  person: "People",
+};
+
+/**
+ * Title + meta for the search page, reflecting the current query and (where
+ * narrowed) the active type, so a shared search link previews meaningfully.
+ */
+export const searchMeta = (query: string, type: SearchType = "all") => {
+  const typeNoun = SEARCH_TYPE_NOUNS[type];
+  const scope = typeNoun ? ` in ${typeNoun}` : "";
+  const title = query ? `“${query}”${scope} — Search — ${SITE}` : `Search — ${SITE}`;
   const description = query
-    ? `Search results for “${query}” on ${SITE}.`
+    ? `Search results for “${query}”${scope} on ${SITE}.`
     : `Search movies, TV shows and people on ${SITE}.`;
   return [
     { title },

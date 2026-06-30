@@ -16,9 +16,9 @@ import {
   type BrowseFilters,
   type GenreOption,
 } from "./browse";
+import { runSearch, searchCacheKey, type SearchFilters } from "./search";
 import {
   fromMovie,
-  fromMulti,
   fromTrending,
   fromTv,
   mapOmdbRatings,
@@ -137,20 +137,33 @@ export const getTvGenres = createServerFn({ method: "GET" }).handler(
     cached("genres:tv", TTL.week, async () => getTmdb().getTvGenres()),
 );
 
-export const searchMulti = createServerFn({ method: "GET" })
-  .validator((query: string) => query)
-  .handler(async ({ data }) => {
-    const query = data?.trim();
-    if (!query) return { query: "", results: [] as SearchItem[] };
-    // Cache only the results, keyed on the normalized query. The echoed `query`
-    // is the caller's own (used in the search box, heading, and page title), so
-    // it must not be served from another caller's cached casing.
-    const results = await cached(`search:${query.toLowerCase()}`, TTL.hour, async () => {
-      const tmdb = getTmdb();
-      const response = await tmdb.multiSearch(query);
-      return response.results.map(fromMulti).filter((item): item is SearchItem => item !== null);
-    });
-    return { query, results };
+export type { SearchFilters, SearchSearch, SearchType } from "./search";
+
+/**
+ * A page of search results plus the pagination envelope and the echoed query.
+ * `query` is the caller's own (used in the search box, heading, and page title),
+ * preserving its casing; the cache is keyed on a lowercased query so casing
+ * variants share an entry without leaking one caller's casing to another.
+ */
+export interface SearchResult {
+  query: string;
+  results: SearchItem[];
+  page: number;
+  totalPages: number;
+}
+
+export const searchMedia = createServerFn({ method: "GET" })
+  .validator((filters: SearchFilters) => filters)
+  .handler(async ({ data: filters }): Promise<SearchResult> => {
+    // Short-circuit a blank query before touching the client or cache, so an
+    // empty search neither hits TMDB nor pollutes the cache with empty pages.
+    if (!filters.query) return { query: "", results: [], page: 1, totalPages: 0 };
+    const { results, page, totalPages } = await cached(
+      `search:${searchCacheKey(filters)}`,
+      TTL.hour,
+      async () => runSearch(getTmdb(), filters),
+    );
+    return { query: filters.query, results, page, totalPages };
   });
 
 export const getMovieDetail = createServerFn({ method: "GET" })
