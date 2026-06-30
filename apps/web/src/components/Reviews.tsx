@@ -53,8 +53,11 @@ const ReviewCard = ({ review }: { review: Review }) => {
   );
 };
 
-export const Reviews = ({ reviews }: { reviews: Review[] }) => {
-  if (reviews.length === 0) return null;
+// `reviews` is optional at runtime: a detail object cached by an older build
+// (before reviews were added) lacks the field, so guard against undefined to
+// avoid crashing the whole detail page on stale cache entries.
+export const Reviews = ({ reviews }: { reviews?: Review[] }) => {
+  if (!reviews || reviews.length === 0) return null;
 
   return (
     <section>
