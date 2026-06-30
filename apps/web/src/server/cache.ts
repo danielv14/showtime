@@ -62,7 +62,7 @@ export const cached = async <T>(
       // TTL. The underlying failure is logged at the fetch site; this records
       // that the degraded result was cached, and for how long, so the recovery
       // window is visible in Workers Logs.
-      console.error("caching degraded payload", { key: namespacedKey, ttlSeconds: effectiveTtl });
+      console.info("caching degraded payload", { key: namespacedKey, ttlSeconds: effectiveTtl });
     }
     await kv.put(namespacedKey, JSON.stringify(value), {
       expirationTtl: effectiveTtl,
