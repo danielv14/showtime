@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult, formatTmdbTvResult } from "@showtime/core";
-import { resolveMedia, atLeastOneMessage } from "./helpers/resolvers.js";
+import { resolveMovieOrTv } from "./helpers/resolvers.js";
 import { pageParam } from "./helpers/params.js";
 
 export const getSimilarTool = defineTool({
@@ -15,18 +15,7 @@ export const getSimilarTool = defineTool({
     page: pageParam,
   },
   handler: async ({ movieId, tvId, page }, clients) => {
-    // This tool's identifiers are movieId/tvId, so it guards with their names
-    // here rather than relying on resolveMedia's tmdbId/imdbId/title message.
-    if (movieId === undefined && tvId === undefined) {
-      throw new Error(atLeastOneMessage(["movieId", "tvId"]));
-    }
-
-    const media = await resolveMedia(
-      clients,
-      movieId !== undefined
-        ? { mediaType: "movie", tmdbId: movieId }
-        : { mediaType: "tv", tmdbId: tvId },
-    );
+    const media = await resolveMovieOrTv(clients, { movieId, tvId });
 
     // The source's genres are not part of ResolvedMedia, so fetch details for them.
     if (media.type === "movie") {
