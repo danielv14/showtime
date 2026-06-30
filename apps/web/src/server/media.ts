@@ -64,6 +64,20 @@ export type {
   WhereToWatch,
 } from "./shaper";
 
+/**
+ * Logs a handled upstream sub-fetch failure as a structured error and returns
+ * `null` so the caller degrades gracefully instead of throwing. These failures
+ * used to be swallowed silently; now they surface in Workers Logs (filter with
+ * `$metadata.error EXISTS`) with enough context to diagnose them: which fetch
+ * failed, the id/params involved, and the underlying error.
+ */
+const logUpstreamFailure =
+  (fetch: string, context: Record<string, unknown>) =>
+  (error: unknown): null => {
+    console.error("upstream fetch failed", { fetch, ...context }, error);
+    return null;
+  };
+
 // ----- server functions -------------------------------------------------------
 //
 // These are thin orchestration: each `createServerFn` fetches via the core
@@ -190,21 +204,25 @@ export const getMovieDetail = createServerFn({ method: "GET" })
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations, reviews] = await Promise.all([
           tmdb.getMovieDetails(id),
-          tmdb.getMovieCredits(id).catch(() => null),
-          tmdb.getWatchProviders(id).catch(() => null),
-          tmdb.getMovieVideos(id).catch(() => null),
-          tmdb.getMovieRecommendations(id).catch(() => null),
+          tmdb.getMovieCredits(id).catch(logUpstreamFailure("tmdb.getMovieCredits", { id })),
+          tmdb.getWatchProviders(id).catch(logUpstreamFailure("tmdb.getWatchProviders", { id })),
+          tmdb.getMovieVideos(id).catch(logUpstreamFailure("tmdb.getMovieVideos", { id })),
+          tmdb
+            .getMovieRecommendations(id)
+            .catch(logUpstreamFailure("tmdb.getMovieRecommendations", { id })),
           // Reviews are a non-critical extra; a failed or slow fetch degrades
           // to no section rather than breaking the rest of the detail page.
-          tmdb.getMovieReviews(id).catch(() => null),
+          tmdb.getMovieReviews(id).catch(logUpstreamFailure("tmdb.getMovieReviews", { id })),
         ]);
         const omdbData = details.imdb_id
           ? ((await omdb.getById({ imdbId: details.imdb_id }).catch((error) => {
+              // A definitive OMDB "not found" (OmdbApiError) is permanent, so
+              // caching it for the full day is correct and not worth surfacing.
               // Only a transient failure (network/timeout/5xx) should shorten the
-              // cache. A definitive OMDB "not found" (OmdbApiError) is permanent,
-              // so caching it for the full day is correct.
-              if (!(error instanceof OmdbApiError)) omdbFailed = true;
-              return null;
+              // cache, and it is logged so it is visible in Workers Logs.
+              if (error instanceof OmdbApiError) return null;
+              omdbFailed = true;
+              return logUpstreamFailure("omdb.getById", { imdbId: details.imdb_id })(error);
             })) as OmdbMovieDetails | null)
           : null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
@@ -212,7 +230,11 @@ export const getMovieDetail = createServerFn({ method: "GET" })
         // /similar only when TMDB has no recommendations for this title.
         const similarSource = recommendations?.results?.length
           ? recommendations.results
-          : ((await tmdb.getSimilarMovies(id).catch(() => null))?.results ?? []);
+          : ((
+              await tmdb
+                .getSimilarMovies(id)
+                .catch(logUpstreamFailure("tmdb.getSimilarMovies", { id }))
+            )?.results ?? []);
         const similar = rankSimilar(similarSource.map(fromMovie));
         return shapeMovie(
           details,
@@ -259,13 +281,17 @@ export const getTvDetail = createServerFn({ method: "GET" })
         const omdb = getOmdb();
         const [details, credits, providers, videos, recommendations, reviews] = await Promise.all([
           tmdb.getTvDetails(id),
-          tmdb.getTvCredits(id).catch(() => null),
-          tmdb.getTvWatchProviders(id).catch(() => null),
-          tmdb.getTvVideos(id).catch(() => null),
-          tmdb.getTvRecommendations(id).catch(() => null),
+          tmdb.getTvCredits(id).catch(logUpstreamFailure("tmdb.getTvCredits", { id })),
+          tmdb
+            .getTvWatchProviders(id)
+            .catch(logUpstreamFailure("tmdb.getTvWatchProviders", { id })),
+          tmdb.getTvVideos(id).catch(logUpstreamFailure("tmdb.getTvVideos", { id })),
+          tmdb
+            .getTvRecommendations(id)
+            .catch(logUpstreamFailure("tmdb.getTvRecommendations", { id })),
           // Reviews are a non-critical extra; a failed or slow fetch degrades
           // to no section rather than breaking the rest of the detail page.
-          tmdb.getTvReviews(id).catch(() => null),
+          tmdb.getTvReviews(id).catch(logUpstreamFailure("tmdb.getTvReviews", { id })),
         ]);
         const year = extractYear(details.first_air_date);
         const omdbData = (await omdb
@@ -277,14 +303,17 @@ export const getTvDetail = createServerFn({ method: "GET" })
           .catch((error) => {
             // Title+year lookups legitimately miss for series OMDB does not have,
             // raising OmdbApiError. That is permanent, not transient, so it must
-            // not shorten the cache; only flag genuine transient failures.
-            if (!(error instanceof OmdbApiError)) omdbFailed = true;
-            return null;
+            // not shorten the cache or be logged; only flag and surface genuine
+            // transient failures.
+            if (error instanceof OmdbApiError) return null;
+            omdbFailed = true;
+            return logUpstreamFailure("omdb.getByTitle", { title: details.name, year })(error);
           })) as OmdbSeriesDetails | null;
         const { ratings, awards } = mapOmdbRatings(omdbData);
         const similarSource = recommendations?.results?.length
           ? recommendations.results
-          : ((await tmdb.getSimilarTv(id).catch(() => null))?.results ?? []);
+          : ((await tmdb.getSimilarTv(id).catch(logUpstreamFailure("tmdb.getSimilarTv", { id })))
+              ?.results ?? []);
         const similar = rankSimilar(similarSource.map(fromTv));
         return shapeTv(
           details,
