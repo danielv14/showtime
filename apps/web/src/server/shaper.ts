@@ -472,6 +472,55 @@ export const shapeReviews = (reviews: TmdbReviewsResponse | null): Review[] =>
 const seasonsLabel = (seasons: number | undefined): string | null =>
   seasons ? `${seasons} season${seasons === 1 ? "" : "s"}` : null;
 
+/**
+ * The ~18 fields `shapeMovie` and `shapeTv` build identically. Taken as an
+ * options object (not positional) so the shared inputs cannot be transposed, and
+ * spread into each detail shaper so the common body is defined once. The
+ * type-specific fields (mediaType, title, year, runtime, directors, writers, and
+ * the movie `collection` / TV extras) stay in their respective shaper.
+ */
+interface MediaCommonInput {
+  id: number;
+  tagline: string | undefined;
+  overview: string | undefined;
+  genres: { id: number; name: string }[];
+  posterPath: string | null;
+  backdropPath: string | null;
+  voteAverage: number;
+  voteCount: number;
+  status: string;
+  credits: TmdbCredits | null;
+  videos: TmdbVideosResponse | null;
+  providers: TmdbWatchProviders | null;
+  ratings: ExternalRating[];
+  ratingsStatus: MediaRatingsStatus;
+  awards: string | null;
+  imdbId: string | undefined;
+  similar: MediaItem[];
+  reviews: Review[];
+}
+
+const shapeMediaCommon = (input: MediaCommonInput) => ({
+  id: input.id,
+  tagline: input.tagline ?? "",
+  overview: input.overview ?? "",
+  genres: input.genres.map((g) => ({ id: g.id, name: g.name })),
+  posterUrl: img(input.posterPath, "w500"),
+  backdropUrl: img(input.backdropPath, "w1280"),
+  tmdbRating: input.voteAverage,
+  tmdbVotes: input.voteCount,
+  status: input.status,
+  cast: mapCast(input.credits),
+  trailerUrl: firstTrailerUrl(input.videos),
+  whereToWatch: mapProviders(input.providers),
+  ratings: input.ratings,
+  ratingsStatus: input.ratingsStatus,
+  awards: input.awards,
+  imdbId: input.imdbId,
+  similar: input.similar,
+  reviews: input.reviews,
+});
+
 export const shapeMovie = (
   d: TmdbMovieDetails,
   credits: TmdbCredits | null,
@@ -484,30 +533,32 @@ export const shapeMovie = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  id: d.id,
+  ...shapeMediaCommon({
+    id: d.id,
+    tagline: d.tagline,
+    overview: d.overview,
+    genres: d.genres,
+    posterPath: d.poster_path,
+    backdropPath: d.backdrop_path,
+    voteAverage: d.vote_average,
+    voteCount: d.vote_count,
+    status: d.status,
+    credits,
+    videos,
+    providers,
+    ratings,
+    ratingsStatus,
+    awards,
+    imdbId,
+    similar,
+    reviews,
+  }),
   mediaType: "movie",
   title: d.title,
-  tagline: d.tagline ?? "",
   year: extractYear(d.release_date),
-  overview: d.overview ?? "",
   runtime: d.runtime ? `${d.runtime} min` : null,
-  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(d.poster_path, "w500"),
-  backdropUrl: img(d.backdrop_path, "w1280"),
-  tmdbRating: d.vote_average,
-  tmdbVotes: d.vote_count,
-  status: d.status,
-  cast: mapCast(credits),
   directors: crewCredits(credits, ["Director"]),
   writers: crewCredits(credits, ["Screenplay", "Writer", "Story"]),
-  trailerUrl: firstTrailerUrl(videos),
-  whereToWatch: mapProviders(providers),
-  ratings,
-  ratingsStatus,
-  awards,
-  imdbId,
-  similar,
-  reviews,
   collection: d.belongs_to_collection
     ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name }
     : null,
@@ -525,34 +576,36 @@ export const shapeTv = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  id: d.id,
+  ...shapeMediaCommon({
+    id: d.id,
+    tagline: d.tagline,
+    overview: d.overview,
+    genres: d.genres,
+    posterPath: d.poster_path,
+    backdropPath: d.backdrop_path,
+    voteAverage: d.vote_average,
+    voteCount: d.vote_count,
+    status: d.status,
+    credits,
+    videos,
+    providers,
+    ratings,
+    ratingsStatus,
+    awards,
+    imdbId,
+    similar,
+    reviews,
+  }),
   mediaType: "tv",
   title: d.name,
-  tagline: d.tagline ?? "",
   year: extractYear(d.first_air_date),
-  overview: d.overview ?? "",
   runtime: d.episode_run_time?.[0] ? `${d.episode_run_time[0]} min` : null,
-  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(d.poster_path, "w500"),
-  backdropUrl: img(d.backdrop_path, "w1280"),
-  tmdbRating: d.vote_average,
-  tmdbVotes: d.vote_count,
-  status: d.status,
-  cast: mapCast(credits),
   directors: (d.created_by ?? []).map((c) => ({ id: c.id, name: c.name })),
   writers: [],
-  trailerUrl: firstTrailerUrl(videos),
-  whereToWatch: mapProviders(providers),
-  ratings,
-  ratingsStatus,
-  awards,
   seasons: d.number_of_seasons,
   episodes: d.number_of_episodes,
   networks: (d.networks ?? []).map((n) => n.name),
   seasonsLabel: seasonsLabel(d.number_of_seasons),
-  imdbId,
-  similar,
-  reviews,
 });
 
 /**
