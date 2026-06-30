@@ -1,5 +1,6 @@
 import type { FilmographySection, PersonCredit } from "#/server/media";
 import { MediaCard } from "#/components/media/MediaCard";
+import { posterGridClass } from "#/components/media/MediaGrid";
 
 const CreditCard = ({ credit }: { credit: PersonCredit }) => (
   <div>
@@ -14,7 +15,7 @@ const FilmographyGroup = ({ section }: { section: FilmographySection }) => (
       {section.department}
       <span className="text-sm font-normal text-zinc-500">{section.count}</span>
     </h2>
-    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className={posterGridClass}>
       {section.credits.map((credit) => (
         <CreditCard key={`${credit.mediaType}-${credit.id}`} credit={credit} />
       ))}
