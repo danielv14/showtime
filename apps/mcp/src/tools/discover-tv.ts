@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbTvResult } from "@showtime/core";
 import { TV_GENRE_MAP, getGenreId } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 export const discoverTvTool = defineTool({
   name: "discover_tv",
@@ -30,7 +31,7 @@ export const discoverTvTool = defineTool({
       ])
       .optional()
       .describe("Sort order (default: popularity.desc)"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ year, genre, minRating, language, sortBy, page }, { tmdb }) => {
     let genreId: string | undefined;

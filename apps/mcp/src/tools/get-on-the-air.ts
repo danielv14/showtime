@@ -1,6 +1,6 @@
-import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbTvResult } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 export const getOnTheAirTool = defineTool({
   name: "get_on_the_air",
@@ -8,7 +8,7 @@ export const getOnTheAirTool = defineTool({
   description:
     "Get TV series that are currently on the air (in production with episodes airing over the next several days). Distinct from get_airing_today, which only covers shows with an episode airing today.",
   schema: {
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ page }, { tmdb }) => {
     const result = await tmdb.getOnTheAirTv({ page });

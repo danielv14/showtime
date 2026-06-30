@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 export const searchMoviesTool = defineTool({
   name: "search_movies",
@@ -10,7 +11,7 @@ export const searchMoviesTool = defineTool({
   schema: {
     query: z.string().describe("Movie title to search for"),
     year: z.number().optional().describe("Filter results by release year (e.g., 2023)"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ query, year, page }, { tmdb }) => {
     const result = await tmdb.searchMovies(query, { page, year });

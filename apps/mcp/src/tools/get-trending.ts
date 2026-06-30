@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { extractYear, truncateText } from "@showtime/core";
 import { NA } from "@showtime/core";
+import { pageParam } from "./helpers/params.js";
 
 export const getTrendingTool = defineTool({
   name: "get_trending",
@@ -16,7 +17,7 @@ export const getTrendingTool = defineTool({
       .enum(["day", "week"])
       .optional()
       .describe("Time window: 'day' or 'week' (default: 'week')"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ mediaType = "all", timeWindow = "week", page }, { tmdb }) => {
     const result = await tmdb.getTrending(mediaType, timeWindow, { page });

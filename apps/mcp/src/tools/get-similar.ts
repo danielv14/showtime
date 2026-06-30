@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatTmdbMovieResult, formatTmdbTvResult } from "@showtime/core";
 import { resolveMedia, atLeastOneMessage } from "./helpers/resolvers.js";
+import { pageParam } from "./helpers/params.js";
 
 export const getSimilarTool = defineTool({
   name: "get_similar",
@@ -11,7 +12,7 @@ export const getSimilarTool = defineTool({
   schema: {
     movieId: z.number().optional().describe("TMDB movie ID (use search_movies to find IDs)"),
     tvId: z.number().optional().describe("TMDB TV series ID (use search_series to find IDs)"),
-    page: z.number().min(1).optional().describe("Page number for pagination (20 results per page)"),
+    page: pageParam,
   },
   handler: async ({ movieId, tvId, page }, clients) => {
     // This tool's identifiers are movieId/tvId, so it guards with their names
