@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { DetailView } from "../DetailView.js";
 import type { MediaDetail } from "../../server/media.js";
 import { renderWithRouter } from "../../test-utils.js";
@@ -69,5 +69,34 @@ describe("DetailView collection entry", () => {
   it("renders no collection entry for a standalone movie", async () => {
     await renderWithRouter(<DetailView detail={detail({ collection: null })} />);
     expect(screen.queryByText(/Part of/)).toBeNull();
+  });
+});
+
+describe("DetailView trailer", () => {
+  const trailerUrl = "https://www.youtube.com/watch?v=m8e-FF8MsqU";
+
+  it("plays the trailer inline on a movie detail page", async () => {
+    await renderWithRouter(<DetailView detail={detail({ mediaType: "movie", trailerUrl })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /watch trailer/i }));
+
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(document.querySelector("iframe")).not.toBeNull();
+  });
+
+  it("plays the trailer inline on a TV detail page", async () => {
+    await renderWithRouter(<DetailView detail={detail({ mediaType: "tv", trailerUrl })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /watch trailer/i }));
+
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(document.querySelector("iframe")).not.toBeNull();
+  });
+
+  it("hides the trailer control when no trailer exists", async () => {
+    await renderWithRouter(<DetailView detail={detail({ trailerUrl: null })} />);
+
+    expect(screen.queryByRole("button", { name: /watch trailer/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /watch trailer/i })).toBeNull();
   });
 });

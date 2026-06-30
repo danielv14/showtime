@@ -1,12 +1,13 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, Layers, Play } from "lucide-react";
+import { ExternalLink, Layers } from "lucide-react";
 import type { CreditName, EpisodeRatingsData, ExternalRating, MediaDetail } from "../server/media";
 import { toCollectionSlug, toPersonSlug } from "../lib/slug";
 import { CastList } from "./CastList";
 import { EpisodeRatings } from "./EpisodeRatings";
 import { MediaRow } from "./MediaRow";
 import { Reviews } from "./Reviews";
+import { TrailerPlayer } from "./TrailerPlayer";
 import { WhereToWatch } from "./WhereToWatch";
 
 const ratingAccent: Record<string, string> = {
@@ -165,17 +166,7 @@ export const DetailView = ({
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              {detail.trailerUrl ? (
-                <a
-                  href={detail.trailerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-semibold text-zinc-950 no-underline transition hover:bg-amber-300"
-                >
-                  <Play className="h-4 w-4 fill-zinc-950" />
-                  Watch Trailer
-                </a>
-              ) : null}
+              <TrailerPlayer url={detail.trailerUrl} title={detail.title} />
               {detail.imdbId ? (
                 <a
                   href={`https://www.imdb.com/title/${detail.imdbId}/`}
