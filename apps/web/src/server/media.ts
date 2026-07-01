@@ -254,10 +254,7 @@ export const getMovieDetail = createServerFn({ method: "GET" })
           // to no section rather than breaking the rest of the detail page.
           tmdb.getMovieReviews(id).catch(logUpstreamFailure("tmdb.getMovieReviews", { id })),
         ]);
-        // `getById` returns the movie/series/episode union; an imdb_id lookup for
-        // a movie resolves to movie details, so narrow the success value to
-        // `OmdbMovieDetails`. `omdbCatch` contributes only `null`, so the awaited
-        // result is `OmdbMovieDetails | null` with no further cast.
+        // An imdb_id lookup for a movie resolves to movie details.
         const omdbData = details.imdb_id
           ? await (omdb.getById({ imdbId: details.imdb_id }) as Promise<OmdbMovieDetails>).catch(
               omdbCatch("omdb.getById", { imdbId: details.imdb_id }, (status) => {
