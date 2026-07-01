@@ -57,9 +57,7 @@ export const getFilmographyTool = defineTool({
 
     // The role filters below are intentionally non-deduping: a person can hold
     // several crew jobs on one film, and each distinct job is accumulated per
-    // movie by uniqueCreditsMap further down. Crew classification (which job or
-    // department counts as director/writer/producer) flows through the shared
-    // @showtime/core helpers so the rule lives in one place.
+    // movie by uniqueCreditsMap further down.
     if (role === "all" || role === "director") {
       filteredCredits.push(
         ...filterCrewByJob(movieCredits.crew, ["Director"]).map((credit) => ({

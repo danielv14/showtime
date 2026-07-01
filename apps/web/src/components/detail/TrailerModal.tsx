@@ -33,15 +33,10 @@ export const TrailerModal = ({
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/80" />
         <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <Dialog.Popup
-            // The close control is the first tabbable element, so this matches
-            // Base UI's default initial focus, but pinning it to a ref keeps
-            // focus landing deterministic across interaction types.
             initialFocus={closeButtonRef}
             // Focus return to the trigger is the caller's job
             // (`TrailerPlayer.handleClose`), so opt out of the dialog's own.
             finalFocus={false}
-            // Base UI relies on focus trapping plus inert siblings for
-            // modality; restate `aria-modal` so the semantics stay explicit.
             aria-modal="true"
             aria-label={`${title} trailer`}
             className="relative w-full max-w-4xl outline-none"

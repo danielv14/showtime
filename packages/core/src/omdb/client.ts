@@ -152,10 +152,7 @@ export const createOmdbClient = (
   };
 
   /**
-   * Issue an OMDB GET (every endpoint is the base URL with query params) and
-   * normalise both of OMDB's failure shapes into an `OmdbApiError`: the seam's
-   * transport failure (outage, timeout, 401) via `toOmdbError`, and OMDB's
-   * wire-level `Response: "False"` (a permanent miss) via `handleResponse`. The
+   * Issue an OMDB GET (every endpoint is the base URL with query params). The
    * `apikey` is injected here so no caller can forget it.
    */
   const request = async <T>(searchParams: Record<string, string | number>): Promise<T> => {

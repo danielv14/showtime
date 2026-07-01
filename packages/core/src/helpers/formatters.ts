@@ -176,11 +176,9 @@ export const crewByJob = <T extends CrewLike>(
 ): T[] => dedupeById(filterCrewByJob(crew ?? [], jobs));
 
 /**
- * Select writing-credit crew members per {@link isWriterCredit}: anyone with a
- * {@link WRITER_JOBS} job OR a Writing department credit. The single, inclusive
- * definition of "writer" shared by every surface, so no credit is dropped from
- * one tool but kept by another. Deduped by id, listing {@link WRITER_JOBS} job
- * matches first and then any remaining Writing-department-only matches.
+ * Select writing-credit crew members per {@link isWriterCredit}, deduped by id,
+ * listing {@link WRITER_JOBS} job matches first and then any remaining
+ * Writing-department-only matches.
  */
 export const crewWriters = <T extends CrewLike>(crew: T[] | undefined): T[] => {
   const list = crew ?? [];
