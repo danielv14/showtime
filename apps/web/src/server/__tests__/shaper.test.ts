@@ -9,13 +9,11 @@ import type {
   TmdbReviewsResponse,
   TmdbMovieDetails,
   TmdbCollectionDetails,
-  OmdbMovieDetails,
   OmdbSeasonResponse,
   TmdbEpisodeDetails,
 } from "@showtime/core";
 import {
   firstTrailerUrl,
-  mapOmdbRatings,
   mapProviders,
   rankSimilar,
   shapeCollection,
@@ -297,45 +295,6 @@ describe("firstTrailerUrl", () => {
     };
     expect(firstTrailerUrl(vimeoOnly)).toBeNull();
     expect(firstTrailerUrl(null)).toBeNull();
-  });
-});
-
-describe("mapOmdbRatings", () => {
-  const movie = (overrides: Partial<OmdbMovieDetails>): OmdbMovieDetails =>
-    ({
-      imdbRating: "8.5",
-      Awards: "Won 3 Oscars",
-      Ratings: [{ Source: "Rotten Tomatoes", Value: "91%" }],
-      ...overrides,
-    }) as OmdbMovieDetails;
-
-  it("extracts IMDb and Rotten Tomatoes ratings plus awards", () => {
-    const { ratings, awards } = mapOmdbRatings(movie({}));
-    expect(ratings).toEqual([
-      { source: "IMDb", value: "8.5/10" },
-      { source: "Rotten Tomatoes", value: "91%" },
-    ]);
-    expect(awards).toBe("Won 3 Oscars");
-  });
-
-  it("skips an N/A IMDb rating and an N/A awards string", () => {
-    const { ratings, awards } = mapOmdbRatings(movie({ imdbRating: "N/A", Awards: "N/A" }));
-    expect(ratings).toEqual([{ source: "Rotten Tomatoes", value: "91%" }]);
-    expect(awards).toBeNull();
-  });
-
-  it("ignores non-Rotten-Tomatoes rating sources", () => {
-    const { ratings } = mapOmdbRatings(
-      movie({
-        imdbRating: "N/A",
-        Ratings: [{ Source: "Metacritic", Value: "80/100" }],
-      }),
-    );
-    expect(ratings).toEqual([]);
-  });
-
-  it("returns empty ratings and null awards when OMDB data is absent", () => {
-    expect(mapOmdbRatings(null)).toEqual({ ratings: [], awards: null });
   });
 });
 

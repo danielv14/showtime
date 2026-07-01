@@ -1,7 +1,7 @@
 import { NA } from "@showtime/core";
-import type { CollectionDetail, MediaDetail, PersonDetail } from "../server/media";
-import type { BrowseFilters } from "../server/browse";
-import type { SearchType } from "../server/search";
+import type { CollectionDetail, MediaDetail, PersonDetail } from "#/server/media";
+import type { BrowseFilters } from "#/server/browse";
+import type { SearchType } from "#/server/search";
 
 const SITE = "Showtime";
 

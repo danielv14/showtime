@@ -25,6 +25,13 @@ describe("parseMediaId", () => {
   it("returns null for a non-integer trailing segment", () => {
     expect(parseMediaId("title-1.5")).toBeNull();
   });
+
+  it("rejects scientific and hex notation rather than coercing it to an id", () => {
+    // `Number("6e2")` is 600 and `Number("0x10")` is 16; a plain-digit guard
+    // keeps a cosmetic title ending in such a token from resolving to a real id.
+    expect(parseMediaId("the-matrix-6e2")).toBeNull();
+    expect(parseMediaId("title-0x10")).toBeNull();
+  });
 });
 
 describe("person slug round-trip", () => {

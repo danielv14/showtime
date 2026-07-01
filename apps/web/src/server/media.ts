@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
   capTotalPages,
+  extractOmdbRatings,
   extractYear,
   NA,
   OmdbApiError,
@@ -20,7 +21,6 @@ import {
   fromMovie,
   fromTrending,
   fromTv,
-  mapOmdbRatings,
   rankSimilar,
   shapeCollection,
   shapeEpisodeDetail,
@@ -262,7 +262,7 @@ export const getMovieDetail = createServerFn({ method: "GET" })
               }),
             )
           : null;
-        const { ratings, awards } = mapOmdbRatings(omdbData);
+        const { ratings, awards } = extractOmdbRatings(omdbData);
         // Recommendations are usually higher quality than /similar; fall back to
         // /similar only when TMDB has no recommendations for this title.
         const similarSource = recommendations?.results?.length
@@ -345,7 +345,7 @@ export const getTvDetail = createServerFn({ method: "GET" })
               ratingsStatus = status;
             }),
           );
-        const { ratings, awards } = mapOmdbRatings(omdbData);
+        const { ratings, awards } = extractOmdbRatings(omdbData);
         const similarSource = recommendations?.results?.length
           ? recommendations.results
           : ((await tmdb.getSimilarTv(id).catch(logUpstreamFailure("tmdb.getSimilarTv", { id })))

@@ -2,7 +2,6 @@ import {
   buildTmdbImageUrl as img,
   crewByJob,
   crewWriters,
-  extractOmdbRatings,
   extractYear,
   formatReview,
   formatWatchProviders,
@@ -23,8 +22,6 @@ import {
   type TmdbPersonCombinedCredits,
   type TmdbCombinedCredit,
   type TmdbCollectionDetails,
-  type OmdbMovieDetails,
-  type OmdbSeriesDetails,
   type OmdbSeasonResponse,
   type TmdbReviewsResponse,
 } from "@showtime/core";
@@ -456,10 +453,6 @@ export const mapProviders = (providers: TmdbWatchProviders | null): WhereToWatch
     buy: toProvider(data.buy),
   };
 };
-
-export const mapOmdbRatings = (
-  omdb: OmdbMovieDetails | OmdbSeriesDetails | null,
-): { ratings: ExternalRating[]; awards: string | null } => extractOmdbRatings(omdb);
 
 /** How many reviews the detail page renders; TMDB returns up to 20 per page. */
 const REVIEW_LIMIT = 6;

@@ -59,7 +59,15 @@ export const MAX_SEARCH_PAGE = TMDB_MAX_PAGES;
 /** Earliest year offered in the search year control (older links still resolve via the normaliser's floor). */
 export const SEARCH_YEAR_FLOOR = YEAR_FLOOR;
 
-const normalizeQuery = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+/**
+ * Cap the query length so it cannot blow the KV cache-key size limit (512 bytes)
+ * via `searchCacheKey`; a write past that limit throws and is silently swallowed,
+ * so every such request bypasses the cache. No real search query is this long.
+ */
+const MAX_QUERY_LENGTH = 200;
+
+const normalizeQuery = (value: unknown): string =>
+  typeof value === "string" ? value.trim().slice(0, MAX_QUERY_LENGTH) : "";
 
 const normalizeType = (value: unknown): SearchType =>
   SEARCH_TYPES.includes(value as SearchType) ? (value as SearchType) : DEFAULT_TYPE;

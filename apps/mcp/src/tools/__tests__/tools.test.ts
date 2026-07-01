@@ -9,6 +9,8 @@ import { getWhereToWatchTool } from "../get-where-to-watch.js";
 import { getReviewsTool } from "../get-reviews.js";
 import { searchSeriesTool } from "../search-series.js";
 import { getCollectionTool } from "../get-collection.js";
+import { discoverMoviesTool } from "../discover-movies.js";
+import { discoverTvTool } from "../discover-tv.js";
 import { registerTestTool, parseSuccess, createFakeClients } from "./harness.js";
 
 /** A TMDB movie search result with the fields the formatter reads. */
@@ -489,6 +491,95 @@ describe("search_series (OMDB-backed, paginated with a page-size cap)", () => {
     expect(payload.page).toBe(1);
     // ceil(45 / 10) = 5, under the 500-page cap.
     expect(payload.totalPages).toBe(5);
+  });
+});
+
+describe("discover_movies (genre-name mapping)", () => {
+  it("maps a genre name to an id and returns a paginated result", async () => {
+    const tool = registerTestTool(
+      discoverMoviesTool,
+      createFakeClients({
+        tmdb: {
+          discoverMovies: async () =>
+            ({
+              page: 1,
+              results: [movieResult({ id: 27205, title: "Inception" })],
+              total_pages: 3,
+              total_results: 42,
+            }) as unknown as Awaited<ReturnType<TmdbClient["discoverMovies"]>>,
+        },
+      }),
+    );
+
+    const payload = parseSuccess(await tool.invoke({ genre: "action" })) as {
+      results: { tmdbId: number }[];
+      totalPages: number;
+      filters: { genre: string };
+    };
+
+    expect(payload.results[0]?.tmdbId).toBe(27205);
+    expect(payload.totalPages).toBe(3);
+    expect(payload.filters.genre).toBe("action");
+  });
+
+  it("returns an isError response for an unknown genre without calling TMDB", async () => {
+    const tool = registerTestTool(discoverMoviesTool, createFakeClients({ tmdb: {} }));
+
+    const response = await tool.invoke({ genre: "bananas" });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain("Unknown genre 'bananas'");
+  });
+});
+
+describe("discover_tv (genre-name mapping)", () => {
+  const tvResult = (overrides: Partial<{ id: number; name: string }>) => ({
+    id: 1,
+    name: "Show",
+    overview: "An overview.",
+    first_air_date: "2008-01-20",
+    poster_path: "/poster.jpg",
+    backdrop_path: "/backdrop.jpg",
+    vote_average: 9,
+    vote_count: 1000,
+    genre_ids: [],
+    ...overrides,
+  });
+
+  it("maps a genre name to an id and returns a paginated result", async () => {
+    const tool = registerTestTool(
+      discoverTvTool,
+      createFakeClients({
+        tmdb: {
+          discoverTv: async () =>
+            ({
+              page: 1,
+              results: [tvResult({ id: 1396, name: "Breaking Bad" })],
+              total_pages: 2,
+              total_results: 15,
+            }) as unknown as Awaited<ReturnType<TmdbClient["discoverTv"]>>,
+        },
+      }),
+    );
+
+    const payload = parseSuccess(await tool.invoke({ genre: "drama" })) as {
+      results: { tmdbId: number }[];
+      totalPages: number;
+      filters: { genre: string };
+    };
+
+    expect(payload.results[0]?.tmdbId).toBe(1396);
+    expect(payload.totalPages).toBe(2);
+    expect(payload.filters.genre).toBe("drama");
+  });
+
+  it("returns an isError response for an unknown genre without calling TMDB", async () => {
+    const tool = registerTestTool(discoverTvTool, createFakeClients({ tmdb: {} }));
+
+    const response = await tool.invoke({ genre: "bananas" });
+
+    expect(response.isError).toBe(true);
+    expect(response.content[0]?.text).toContain("Unknown genre 'bananas'");
   });
 });
 
