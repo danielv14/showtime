@@ -489,52 +489,42 @@ const seasonsLabel = (seasons: number | undefined): string | null =>
   seasons ? `${seasons} season${seasons === 1 ? "" : "s"}` : null;
 
 /**
- * The ~18 fields `shapeMovie` and `shapeTv` build identically. Taken as an
- * options object (not positional) so the shared inputs cannot be transposed, and
- * spread into each detail shaper so the common body is defined once. The
- * type-specific fields (mediaType, title, year, runtime, directors, writers, and
- * the movie `collection` / TV extras) stay in their respective shaper.
+ * The ~18 fields `shapeMovie` and `shapeTv` build identically. Reads the 9 shared
+ * raw fields straight off the TMDB movie/TV union; takes the already-resolved
+ * extras as a second arg. The type-specific fields stay in their respective shaper.
  */
-interface MediaCommonInput {
-  id: number;
-  tagline: string | undefined;
-  overview: string | undefined;
-  genres: { id: number; name: string }[];
-  posterPath: string | null;
-  backdropPath: string | null;
-  voteAverage: number;
-  voteCount: number;
-  status: string;
-  credits: TmdbCredits | null;
-  videos: TmdbVideosResponse | null;
-  providers: TmdbWatchProviders | null;
-  ratings: ExternalRating[];
-  ratingsStatus: MediaRatingsStatus;
-  awards: string | null;
-  imdbId: string | undefined;
-  similar: MediaItem[];
-  reviews: Review[];
-}
-
-const shapeMediaCommon = (input: MediaCommonInput) => ({
-  id: input.id,
-  tagline: input.tagline ?? "",
-  overview: input.overview ?? "",
-  genres: input.genres.map((g) => ({ id: g.id, name: g.name })),
-  posterUrl: img(input.posterPath, DETAIL_POSTER_SIZE),
-  backdropUrl: img(input.backdropPath, BACKDROP_SIZE),
-  tmdbRating: input.voteAverage,
-  tmdbVotes: input.voteCount,
-  status: input.status,
-  cast: mapCast(input.credits),
-  trailerUrl: firstTrailerUrl(input.videos),
-  whereToWatch: mapProviders(input.providers),
-  ratings: input.ratings,
-  ratingsStatus: input.ratingsStatus,
-  awards: input.awards,
-  imdbId: input.imdbId,
-  similar: input.similar,
-  reviews: input.reviews,
+const shapeMediaCommon = (
+  d: TmdbMovieDetails | TmdbTvDetails,
+  extras: {
+    credits: TmdbCredits | null;
+    videos: TmdbVideosResponse | null;
+    providers: TmdbWatchProviders | null;
+    ratings: ExternalRating[];
+    ratingsStatus: MediaRatingsStatus;
+    awards: string | null;
+    imdbId: string | undefined;
+    similar: MediaItem[];
+    reviews: Review[];
+  },
+) => ({
+  id: d.id,
+  tagline: d.tagline ?? "",
+  overview: d.overview ?? "",
+  genres: d.genres.map((g) => ({ id: g.id, name: g.name })),
+  posterUrl: img(d.poster_path, DETAIL_POSTER_SIZE),
+  backdropUrl: img(d.backdrop_path, BACKDROP_SIZE),
+  tmdbRating: d.vote_average,
+  tmdbVotes: d.vote_count,
+  status: d.status,
+  cast: mapCast(extras.credits),
+  trailerUrl: firstTrailerUrl(extras.videos),
+  whereToWatch: mapProviders(extras.providers),
+  ratings: extras.ratings,
+  ratingsStatus: extras.ratingsStatus,
+  awards: extras.awards,
+  imdbId: extras.imdbId,
+  similar: extras.similar,
+  reviews: extras.reviews,
 });
 
 export const shapeMovie = (
@@ -549,16 +539,7 @@ export const shapeMovie = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  ...shapeMediaCommon({
-    id: d.id,
-    tagline: d.tagline,
-    overview: d.overview,
-    genres: d.genres,
-    posterPath: d.poster_path,
-    backdropPath: d.backdrop_path,
-    voteAverage: d.vote_average,
-    voteCount: d.vote_count,
-    status: d.status,
+  ...shapeMediaCommon(d, {
     credits,
     videos,
     providers,
@@ -592,16 +573,7 @@ export const shapeTv = (
   similar: MediaItem[],
   reviews: Review[],
 ): MediaDetail => ({
-  ...shapeMediaCommon({
-    id: d.id,
-    tagline: d.tagline,
-    overview: d.overview,
-    genres: d.genres,
-    posterPath: d.poster_path,
-    backdropPath: d.backdrop_path,
-    voteAverage: d.vote_average,
-    voteCount: d.vote_count,
-    status: d.status,
+  ...shapeMediaCommon(d, {
     credits,
     videos,
     providers,
