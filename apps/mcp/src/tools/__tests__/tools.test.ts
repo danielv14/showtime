@@ -6,6 +6,9 @@ import { getMovieTool } from "../get-movie.js";
 import { getFilmographyTool } from "../get-filmography.js";
 import { getSeriesTool } from "../get-series.js";
 import { getWhereToWatchTool } from "../get-where-to-watch.js";
+import { getReviewsTool } from "../get-reviews.js";
+import { searchSeriesTool } from "../search-series.js";
+import { getCollectionTool } from "../get-collection.js";
 import { registerTestTool, parseSuccess, createFakeClients } from "./harness.js";
 
 /** A TMDB movie search result with the fields the formatter reads. */
@@ -342,6 +345,150 @@ describe("get_series (OMDB-only)", () => {
 
     expect(response.isError).toBe(true);
     expect(response.content[0]?.text).toContain("is a movie, not a series");
+  });
+});
+
+describe("get_reviews (paginated, standard fields + cap)", () => {
+  it("emits totalResults (not totalReviews) and caps totalPages", async () => {
+    const tool = registerTestTool(
+      getReviewsTool,
+      createFakeClients({
+        tmdb: {
+          getMovieDetails: async (id: number) =>
+            ({ id, title: "Dune" }) as unknown as Awaited<
+              ReturnType<TmdbClient["getMovieDetails"]>
+            >,
+          getMovieReviews: async () =>
+            ({
+              page: 1,
+              results: [
+                {
+                  id: "r1",
+                  author: "Ann",
+                  author_details: { username: "ann", rating: 8 },
+                  content: "Great",
+                  created_at: "2020-01-01",
+                  url: "http://example.com/r1",
+                },
+              ],
+              total_pages: 9999,
+              total_results: 200000,
+            }) as unknown as Awaited<ReturnType<TmdbClient["getMovieReviews"]>>,
+        },
+      }),
+    );
+
+    const payload = parseSuccess(await tool.invoke({ movieId: 438631 })) as {
+      mediaTitle: string;
+      reviews: { author: string }[];
+      totalResults: number;
+      totalPages: number;
+    };
+
+    expect(payload.mediaTitle).toBe("Dune");
+    expect(payload.reviews[0]?.author).toBe("Ann");
+    expect(payload.totalResults).toBe(200000);
+    expect(payload.totalPages).toBe(500);
+  });
+});
+
+describe("get_collection (reuses formatTmdbMovieResult for its parts)", () => {
+  it("orders parts by release date and shapes each via the core formatter", async () => {
+    const tool = registerTestTool(
+      getCollectionTool,
+      createFakeClients({
+        tmdb: {
+          getCollection: async () =>
+            ({
+              id: 10,
+              name: "The Matrix Collection",
+              overview: "Franchise",
+              poster_path: "/c.jpg",
+              backdrop_path: "/b.jpg",
+              parts: [
+                {
+                  id: 604,
+                  title: "Reloaded",
+                  release_date: "2003-05-15",
+                  overview: "o",
+                  vote_average: 7,
+                  vote_count: 100,
+                  poster_path: "/r.jpg",
+                },
+                {
+                  id: 603,
+                  title: "The Matrix",
+                  release_date: "1999-03-30",
+                  overview: "o",
+                  vote_average: 8,
+                  vote_count: 200,
+                  poster_path: "/m.jpg",
+                },
+              ],
+            }) as unknown as Awaited<ReturnType<TmdbClient["getCollection"]>>,
+        },
+      }),
+    );
+
+    const payload = parseSuccess(await tool.invoke({ collectionId: 10 })) as {
+      totalMovies: number;
+      movies: {
+        order: number;
+        tmdbId: number;
+        title: string;
+        year: string;
+        voteCount: number;
+        posterUrl: string;
+      }[];
+    };
+
+    expect(payload.totalMovies).toBe(2);
+    // Sorted by release date: The Matrix (1999) before Reloaded (2003).
+    expect(payload.movies[0]).toMatchObject({
+      order: 1,
+      tmdbId: 603,
+      title: "The Matrix",
+      year: "1999",
+      voteCount: 200,
+    });
+    expect(payload.movies[1]).toMatchObject({
+      order: 2,
+      tmdbId: 604,
+      title: "Reloaded",
+      year: "2003",
+    });
+    expect(payload.movies[0]?.posterUrl).toContain("/m.jpg");
+  });
+});
+
+describe("search_series (OMDB-backed, paginated with a page-size cap)", () => {
+  it("derives and caps totalPages from the OMDB total and page size", async () => {
+    const tool = registerTestTool(
+      searchSeriesTool,
+      createFakeClients({
+        omdb: {
+          searchSeries: async () =>
+            ({
+              Search: [{ Title: "Lost", Year: "2004", imdbID: "tt0411008", Type: "series" }],
+              totalResults: "45",
+              Response: "True",
+            }) as unknown as Awaited<ReturnType<OmdbClient["searchSeries"]>>,
+        },
+      }),
+    );
+
+    const payload = parseSuccess(await tool.invoke({ query: "lost" })) as {
+      results: { imdbId: string }[];
+      totalResults: number;
+      page: number;
+      totalPages: number;
+    };
+
+    expect(payload.results[0]?.imdbId).toBe("tt0411008");
+    expect(payload.totalResults).toBe(45);
+    expect(payload.page).toBe(1);
+    // ceil(45 / 10) = 5, under the 500-page cap.
+    expect(payload.totalPages).toBe(5);
   });
 });
 

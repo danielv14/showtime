@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineTool } from "./define-tool.js";
+import { defineTool, omdbPaginatedResult } from "./define-tool.js";
 import { OMDB_RESULTS_PER_PAGE } from "@showtime/core";
 
 export const searchSeriesTool = defineTool({
@@ -27,13 +27,13 @@ export const searchSeriesTool = defineTool({
       type: series.Type,
     }));
 
-    const totalResults = parseInt(result.totalResults, 10);
-
-    return {
-      results: formattedResults,
-      totalResults,
-      page: page || 1,
-      totalPages: Math.ceil(totalResults / OMDB_RESULTS_PER_PAGE),
-    };
+    return omdbPaginatedResult(
+      {
+        page: page ?? 1,
+        totalResults: parseInt(result.totalResults, 10),
+        resultsPerPage: OMDB_RESULTS_PER_PAGE,
+      },
+      { results: formattedResults },
+    );
   },
 });

@@ -2,8 +2,7 @@ import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
 import { crewByJob, crewWriters } from "@showtime/core";
 import { NA } from "@showtime/core";
-import type { TmdbMovieDetails } from "@showtime/core";
-import { requireAtLeastOne } from "./helpers/resolvers.js";
+import { requireAtLeastOne, resolveMovieAcrossSources } from "./helpers/resolvers.js";
 
 export const getMovieTool = defineTool({
   name: "get_movie",
@@ -26,27 +25,10 @@ export const getMovieTool = defineTool({
     });
     if (guardError) return failWith(guardError);
 
-    let finalImdbId: string | undefined = imdbId;
-    let finalTmdbId: number | undefined = tmdbId;
-    let tmdbDetails: TmdbMovieDetails | undefined;
-
-    if (tmdbId && !imdbId) {
-      tmdbDetails = await tmdb.getMovieDetails(tmdbId);
-      finalImdbId = tmdbDetails.imdb_id || undefined;
-      finalTmdbId = tmdbDetails.id;
-    }
-
-    if (!finalImdbId && !finalTmdbId && title) {
-      const searchResult = await tmdb.searchMovies(title, {
-        year: year ? parseInt(year) : undefined,
-      });
-      const firstResult = searchResult.results[0];
-      if (firstResult) {
-        finalTmdbId = firstResult.id;
-        tmdbDetails = await tmdb.getMovieDetails(finalTmdbId);
-        finalImdbId = tmdbDetails.imdb_id || undefined;
-      }
-    }
+    const resolved = await resolveMovieAcrossSources(tmdb, { imdbId, tmdbId, title, year });
+    let finalImdbId = resolved.imdbId;
+    const finalTmdbId = resolved.tmdbId;
+    let tmdbDetails = resolved.tmdbDetails;
 
     let omdbResult;
     if (finalImdbId) {

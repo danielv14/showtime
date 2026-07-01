@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineTool, failWith } from "./define-tool.js";
-import { extractYear, NA, truncateText } from "@showtime/core";
+import { formatTmdbMovieResult } from "@showtime/core";
 import { requireAtLeastOne, resolveMedia } from "./helpers/resolvers.js";
 
 export const getCollectionTool = defineTool({
@@ -54,14 +54,7 @@ export const getCollectionTool = defineTool({
 
     const formattedMovies = sortedMovies.map((movie, index) => ({
       order: index + 1,
-      tmdbId: movie.id,
-      title: movie.title,
-      year: extractYear(movie.release_date),
-      releaseDate: movie.release_date || NA,
-      overview: truncateText(movie.overview || "", 200),
-      tmdbRating: movie.vote_average,
-      voteCount: movie.vote_count,
-      posterUrl: clients.tmdb.getImageUrl(movie.poster_path, "w342"),
+      ...formatTmdbMovieResult(movie, clients.tmdb.getImageUrl, { includeVoteCount: true }),
     }));
 
     return {

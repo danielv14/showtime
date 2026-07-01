@@ -4,7 +4,9 @@ import {
   requireAtLeastOne,
   resolveMedia,
   resolveMovieOrTv,
+  resolveMovieAcrossSources,
 } from "../helpers/resolvers.js";
+import type { TmdbClient } from "@showtime/core";
 import { createFakeClients, createFakeTmdbClient, createFakeOmdbClient } from "./harness.js";
 
 describe("requireAtLeastOne", () => {
@@ -143,6 +145,52 @@ describe("resolveMovieOrTv", () => {
     const media = await resolveMovieOrTv(clients, { tvId: 1396 });
 
     expect(media).toEqual({ type: "tv", id: 1396, name: "Breaking Bad" });
+  });
+});
+
+describe("resolveMovieAcrossSources", () => {
+  it("passes an imdbId through without hitting TMDB", async () => {
+    const tmdb = createFakeTmdbClient({});
+
+    const resolved = await resolveMovieAcrossSources(tmdb, { imdbId: "tt0111161" });
+
+    expect(resolved).toEqual({ imdbId: "tt0111161", tmdbId: undefined, tmdbDetails: undefined });
+  });
+
+  it("crosses a tmdbId to its imdb_id, returning the details it fetched", async () => {
+    const tmdb = createFakeTmdbClient({
+      getMovieDetails: async (id: number) =>
+        ({ id, imdb_id: "tt0111161", title: "Shawshank" }) as unknown as Awaited<
+          ReturnType<TmdbClient["getMovieDetails"]>
+        >,
+    });
+
+    const resolved = await resolveMovieAcrossSources(tmdb, { tmdbId: 278 });
+
+    expect(resolved.imdbId).toBe("tt0111161");
+    expect(resolved.tmdbId).toBe(278);
+    expect(resolved.tmdbDetails?.title).toBe("Shawshank");
+  });
+
+  it("resolves a title by searching then fetching the first hit's details", async () => {
+    const tmdb = createFakeTmdbClient({
+      searchMovies: async () =>
+        ({
+          page: 1,
+          results: [{ id: 603 }],
+          total_pages: 1,
+          total_results: 1,
+        }) as unknown as Awaited<ReturnType<TmdbClient["searchMovies"]>>,
+      getMovieDetails: async (id: number) =>
+        ({ id, imdb_id: "tt0133093" }) as unknown as Awaited<
+          ReturnType<TmdbClient["getMovieDetails"]>
+        >,
+    });
+
+    const resolved = await resolveMovieAcrossSources(tmdb, { title: "The Matrix" });
+
+    expect(resolved.tmdbId).toBe(603);
+    expect(resolved.imdbId).toBe("tt0133093");
   });
 });
 
