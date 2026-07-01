@@ -36,8 +36,13 @@ const toSlug = (id: number, title: string | null | undefined): string => {
  * not-found instead of querying TMDB for `.../NaN`.
  */
 export const parseTrailingId = (slug: string): number | null => {
-  const id = Number(slug.split("-").at(-1));
-  return Number.isInteger(id) && id > 0 ? id : null;
+  const segment = slug.split("-").at(-1);
+  // Only a plain run of decimal digits is a valid id. `Number` alone would also
+  // accept scientific and hex notation (`6e2` -> 600, `0x10` -> 16), so a
+  // cosmetic title ending in such a token would resolve to an unrelated id.
+  if (!segment || !/^\d+$/.test(segment)) return null;
+  const id = Number(segment);
+  return id > 0 ? id : null;
 };
 
 /** Build the URL segment for a movie or TV item: `the-matrix-603`. */
