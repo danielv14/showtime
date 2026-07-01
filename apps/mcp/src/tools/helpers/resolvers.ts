@@ -1,4 +1,4 @@
-import type { TmdbClient } from "@showtime/core";
+import type { TmdbClient, TmdbMovieDetails } from "@showtime/core";
 import type { ToolClients } from "../define-tool.js";
 import { createErrorResponse } from "./response.js";
 
@@ -140,4 +140,53 @@ export const resolveMovieOrTv = async (
       ? { mediaType: "movie", tmdbId: movieId }
       : { mediaType: "tv", tmdbId: tvId },
   );
+};
+
+/**
+ * A movie resolved across sources: whichever ids we could establish, plus the
+ * TMDB details when a lookup already fetched them (so callers reuse rather than
+ * refetch).
+ */
+export interface CrossSourceMovie {
+  imdbId?: string;
+  tmdbId?: number;
+  tmdbDetails?: TmdbMovieDetails;
+}
+
+/**
+ * Resolve a movie to both an imdbId and a tmdbId, starting from any of tmdbId /
+ * imdbId / title. Crosses ids via TMDB: a tmdbId yields its imdb_id, and a title
+ * is searched then its first hit's details fetched. Returns any TMDB details it
+ * had to fetch so the caller can reuse them. Establishing the OMDB-side id and
+ * validating the result's type stay with the caller ({@link getMovieTool}), which
+ * needs the OMDB payload for both. Assumes at least one identifier is present.
+ */
+export const resolveMovieAcrossSources = async (
+  tmdb: TmdbClient,
+  input: { imdbId?: string; tmdbId?: number; title?: string; year?: string },
+): Promise<CrossSourceMovie> => {
+  const { imdbId, tmdbId, title, year } = input;
+  let finalImdbId: string | undefined = imdbId;
+  let finalTmdbId: number | undefined = tmdbId;
+  let tmdbDetails: TmdbMovieDetails | undefined;
+
+  if (tmdbId && !imdbId) {
+    tmdbDetails = await tmdb.getMovieDetails(tmdbId);
+    finalImdbId = tmdbDetails.imdb_id || undefined;
+    finalTmdbId = tmdbDetails.id;
+  }
+
+  if (!finalImdbId && !finalTmdbId && title) {
+    const searchResult = await tmdb.searchMovies(title, {
+      year: year ? parseInt(year, 10) : undefined,
+    });
+    const firstResult = searchResult.results[0];
+    if (firstResult) {
+      finalTmdbId = firstResult.id;
+      tmdbDetails = await tmdb.getMovieDetails(finalTmdbId);
+      finalImdbId = tmdbDetails.imdb_id || undefined;
+    }
+  }
+
+  return { imdbId: finalImdbId, tmdbId: finalTmdbId, tmdbDetails };
 };

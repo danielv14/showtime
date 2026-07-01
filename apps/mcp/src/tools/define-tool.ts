@@ -6,6 +6,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
   createPaginatedResponse,
+  type Pagination,
 } from "./helpers/response.js";
 
 /** Clients injected into every handler; a tool destructures only what it needs. */
@@ -43,18 +44,46 @@ const PAGINATED = Symbol("paginatedResult");
 
 interface PaginatedResult {
   [PAGINATED]: true;
-  apiResponse: { total_results: number; page: number; total_pages: number };
+  pagination: Pagination;
   data: Record<string, unknown>;
 }
 
 /**
- * Wrap a handler payload that carries pagination metadata. The runner detects
- * this brand and shapes it with {@link createPaginatedResponse}.
+ * Wrap a handler payload that carries TMDB pagination metadata. Adapts TMDB's
+ * `total_results`/`page`/`total_pages` wire shape into the normalised
+ * {@link Pagination} the runner shapes with {@link createPaginatedResponse}.
  */
 export const paginatedResult = (
   apiResponse: { total_results: number; page: number; total_pages: number },
   data: Record<string, unknown>,
-): PaginatedResult => ({ [PAGINATED]: true, apiResponse, data });
+): PaginatedResult => ({
+  [PAGINATED]: true,
+  pagination: {
+    page: apiResponse.page,
+    totalPages: apiResponse.total_pages,
+    totalResults: apiResponse.total_results,
+  },
+  data,
+});
+
+/**
+ * Wrap a handler payload that carries OMDB pagination metadata. OMDB reports a
+ * total count and a fixed page size rather than a page count, so this adapts
+ * those into the same normalised {@link Pagination}; the runner caps and names
+ * the fields exactly as it does for TMDB.
+ */
+export const omdbPaginatedResult = (
+  args: { page: number; totalResults: number; resultsPerPage: number },
+  data: Record<string, unknown>,
+): PaginatedResult => ({
+  [PAGINATED]: true,
+  pagination: {
+    page: args.page,
+    totalPages: Math.ceil(args.totalResults / args.resultsPerPage),
+    totalResults: args.totalResults,
+  },
+  data,
+});
 
 const isPaginatedResult = (value: unknown): value is PaginatedResult =>
   typeof value === "object" && value !== null && PAGINATED in value;
@@ -100,7 +129,7 @@ export const registerTool = (
       try {
         const result = await definition.handler(args, clients);
         if (isPaginatedResult(result)) {
-          return createPaginatedResponse(result.apiResponse, result.data);
+          return createPaginatedResponse(result.pagination, result.data);
         }
         return createSuccessResponse(result);
       } catch (error) {

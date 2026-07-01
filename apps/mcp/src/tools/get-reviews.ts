@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineTool } from "./define-tool.js";
+import { defineTool, paginatedResult } from "./define-tool.js";
 import { formatReview } from "@showtime/core";
 import { resolveMovieOrTv } from "./helpers/resolvers.js";
 
@@ -20,14 +20,11 @@ export const getReviewsTool = defineTool({
         ? await clients.tmdb.getMovieReviews(media.id, { page })
         : await clients.tmdb.getTvReviews(media.id, { page });
 
-    return {
+    return paginatedResult(reviewsResponse, {
       mediaType: media.type,
       mediaTitle: media.name,
       mediaId: media.id,
       reviews: reviewsResponse.results.map(formatReview),
-      totalReviews: reviewsResponse.total_results,
-      page: reviewsResponse.page,
-      totalPages: reviewsResponse.total_pages,
-    };
+    });
   },
 });
