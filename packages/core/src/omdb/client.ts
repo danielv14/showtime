@@ -142,11 +142,12 @@ export const createOmdbClient = (
   httpClient: HttpClient = createOmdbHttpClient(),
 ) => {
   const handleResponse = <T>(response: T): T => {
-    const maybeError = response as Partial<OmdbErrorResponse>;
+    const maybeError = response as { Response?: string };
     if (maybeError.Response === "False") {
       // A wire-level `Response: "False"` is OMDB saying it has no result for
       // this query, so it is a permanent miss rather than a transient fault.
-      throw new OmdbApiError(maybeError.Error ?? "", "not_found");
+      const errorResponse = response as OmdbErrorResponse;
+      throw new OmdbApiError(errorResponse.Error, "not_found");
     }
     return response;
   };
