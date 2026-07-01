@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { searchMedia } from "../server/media";
+import { searchMedia } from "#/server/media";
 import {
   normalizeSearchFilters,
   SEARCH_YEAR_FLOOR,
   toSearchSearch,
   type SearchSearch,
-} from "../server/search";
+} from "#/server/search";
 import { SearchView } from "#/components/search/SearchView";
-import { currentYearRange } from "../lib/year-options";
-import { searchMeta } from "../lib/seo";
+import { currentYearRange } from "#/lib/year-options";
+import { searchMeta } from "#/lib/seo";
 
 const SearchPage = () => {
   const { query, results, page, totalPages, filters, yearRange } = Route.useLoaderData();

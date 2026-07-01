@@ -1,8 +1,8 @@
 import { NA } from "@showtime/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getHomeData } from "../server/media";
+import { getHomeData } from "#/server/media";
 import { MediaRow } from "#/components/media/MediaRow";
-import { toMediaSlug } from "../lib/slug";
+import { toMediaSlug } from "#/lib/slug";
 
 const Home = () => {
   const { trending, upcoming } = Route.useLoaderData();

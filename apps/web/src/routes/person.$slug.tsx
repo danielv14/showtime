@@ -1,8 +1,8 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { getPersonDetail } from "../server/media";
+import { getPersonDetail } from "#/server/media";
 import { PersonView } from "#/components/person/PersonView";
-import { personMeta } from "../lib/seo";
-import { parsePersonId, toPersonSlug } from "../lib/slug";
+import { personMeta } from "#/lib/seo";
+import { parsePersonId, toPersonSlug } from "#/lib/slug";
 
 const PersonDetailPage = () => <PersonView person={Route.useLoaderData()} />;
 

@@ -4,7 +4,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { Footer } from "#/components/layout/Footer";
 import { Header } from "#/components/layout/Header";
 
-import appCss from "../styles.css?url";
+import appCss from "#/styles.css?url";
 
 const RootDocument = ({ children }: { children: React.ReactNode }) => (
   <html lang="en" className="dark">

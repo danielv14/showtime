@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { browseMovies, getMovieGenres } from "../server/media";
+import { browseMovies, getMovieGenres } from "#/server/media";
 import {
   BROWSE_YEAR_FLOOR,
   normalizeBrowseFilters,
   toBrowseSearch,
   type BrowseSearch,
-} from "../server/browse";
+} from "#/server/browse";
 import { BrowseView } from "#/components/browse/BrowseView";
-import { currentYearRange } from "../lib/year-options";
-import { browseMeta } from "../lib/seo";
+import { currentYearRange } from "#/lib/year-options";
+import { browseMeta } from "#/lib/seo";
 
 const MoviesPage = () => {
   const { items, page, totalPages, filters, genres, yearRange } = Route.useLoaderData();
