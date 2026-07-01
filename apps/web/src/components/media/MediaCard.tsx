@@ -1,6 +1,5 @@
 import { NA } from "@showtime/core";
 import { Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
 import type { MediaItem } from "#/server/media";
 import { toMediaSlug } from "#/lib/slug";
 
@@ -23,12 +22,6 @@ export const MediaCard = ({ item }: { item: MediaItem }) => {
           </div>
         )}
 
-        {item.rating > 0 && (
-          <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-xs font-semibold text-amber-300 backdrop-blur-md">
-            <Star className="h-3 w-3 fill-amber-300" />
-            {item.rating.toFixed(1)}
-          </span>
-        )}
         <span className="absolute right-2 top-2 z-10 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/90 backdrop-blur-md">
           {item.mediaType}
         </span>

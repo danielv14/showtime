@@ -1,6 +1,5 @@
 import { NA } from "@showtime/core";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
 import { getHomeData } from "../server/media";
 import { MediaRow } from "#/components/media/MediaRow";
 import { toMediaSlug } from "../lib/slug";
@@ -32,12 +31,6 @@ const Home = () => {
               {hero.title}
             </h1>
             <div className="mt-3 flex items-center gap-3 text-sm text-zinc-400">
-              {hero.rating > 0 ? (
-                <span className="inline-flex items-center gap-1 text-amber-300">
-                  <Star className="h-4 w-4 fill-amber-300" />
-                  {hero.rating.toFixed(1)}
-                </span>
-              ) : null}
               {heroYear ? <span>{heroYear}</span> : null}
               <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-zinc-300">
                 {hero.mediaType}
