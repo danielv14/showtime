@@ -45,4 +45,4 @@ Continuous deployment via Cloudflare Workers Builds (Git integration on `danielv
 - **Deploy command**: `cd apps/web && ./node_modules/.bin/wrangler deploy` — run the binary directly, not via `npx`, which invokes npm and fails `EBADDEVENGINES` (the root `package.json` pins pnpm via `devEngines`). `wrangler deploy` auto-detects the Vite `dist/` build; the `CACHE` KV binding and `nodejs_compat` come from `wrangler.jsonc`.
 - **Secrets**: `TMDB_API_KEY` + `OMDB_API_KEY` on the Worker (see Secrets above).
 
-Node is pinned via `.node-version` (`22.18.0`) because vite-plus's native bindings need `node ^20.19 || ^22.18 || >=24.11`, and pnpm silently skips optional deps whose engine doesn't match. Bump it if Cloudflare lacks that exact version.
+Node is pinned via `.node-version` (`24.13.0`) because vite-plus's native bindings need `node >=24.11.0`, and pnpm silently skips optional deps whose engine doesn't match. Bump it if Cloudflare lacks that exact version.
