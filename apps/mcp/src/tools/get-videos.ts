@@ -1,8 +1,7 @@
 import { z } from "zod";
-import type { TmdbVideo } from "@showtime/core";
-import { defineTool, failWith } from "./define-tool.js";
+import { defineTool } from "./define-tool.js";
 import { formatVideo } from "@showtime/core";
-import { requireAtLeastOne } from "./helpers/resolvers.js";
+import { resolveMovieOrTv } from "./helpers/resolvers.js";
 
 export const getVideosTool = defineTool({
   name: "get_videos",
@@ -17,31 +16,17 @@ export const getVideosTool = defineTool({
       .optional()
       .describe("Filter by video type (default: all)"),
   },
-  handler: async ({ movieId, tvId, type = "all" }, { tmdb }) => {
-    const guardError = requireAtLeastOne("getting videos", { movieId, tvId });
-    if (guardError) return failWith(guardError);
+  handler: async ({ movieId, tvId, type = "all" }, clients) => {
+    // Route through the shared movie/tv resolver so the id-pair guard and
+    // resolution match get_reviews / get_similar. It resolves the title too, so
+    // we only fetch the videos here.
+    const media = await resolveMovieOrTv(clients, { movieId, tvId });
 
-    let videos: TmdbVideo[] = [];
-    let mediaTitle = "";
-    let mediaType: "movie" | "tv" = "movie";
-
-    if (movieId) {
-      const [videosResponse, movieDetails] = await Promise.all([
-        tmdb.getMovieVideos(movieId),
-        tmdb.getMovieDetails(movieId),
-      ]);
-      videos = videosResponse.results;
-      mediaTitle = movieDetails.title;
-      mediaType = "movie";
-    } else if (tvId) {
-      const [videosResponse, tvDetails] = await Promise.all([
-        tmdb.getTvVideos(tvId),
-        tmdb.getTvDetails(tvId),
-      ]);
-      videos = videosResponse.results;
-      mediaTitle = tvDetails.name;
-      mediaType = "tv";
-    }
+    const videosResponse =
+      media.type === "movie"
+        ? await clients.tmdb.getMovieVideos(media.id)
+        : await clients.tmdb.getTvVideos(media.id);
+    let videos = videosResponse.results;
 
     // Filter by type if specified
     if (type !== "all") {
@@ -57,9 +42,9 @@ export const getVideosTool = defineTool({
     const formattedVideos = videos.map(formatVideo);
 
     return {
-      mediaType,
-      mediaTitle,
-      mediaId: movieId || tvId,
+      mediaType: media.type,
+      mediaTitle: media.name,
+      mediaId: media.id,
       videos: formattedVideos,
       totalVideos: formattedVideos.length,
       filter: type,

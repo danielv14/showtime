@@ -221,7 +221,11 @@ export interface TmdbGenre {
 
 // Find by external ID response
 export interface TmdbFindResponse {
-  movie_results: TmdbMovieDetails[];
+  // The /find endpoint returns search-shaped partials, not full details (no
+  // runtime, budget, belongs_to_collection, etc.). Typed as the search shape so
+  // callers do not read detail-only fields that are absent at runtime; fetch
+  // full details separately by id when they are needed.
+  movie_results: TmdbMovieSearchResult[];
   person_results: TmdbPersonDetails[];
   tv_results: unknown[];
   tv_episode_results: unknown[];
